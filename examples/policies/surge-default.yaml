@@ -1,0 +1,41 @@
+apiVersion: offense.dev/raid/v1alpha1
+kind: PolicyBundle
+metadata:
+  name: surge-default
+  revision: 7
+defaults:
+  effect: deny
+rules:
+  - id: github-issue-reads
+    description: Allow issue reads in approved repositories
+    match:
+      providers: [github]
+      operations:
+        - github.issues.list
+        - github.issues.get
+      effects: [read]
+    when: >-
+      resource.environment != "production" ||
+      principal.groups.exists(g, g == "engineering")
+    effect: allow
+
+  - id: production-label-write
+    description: Ask before modifying production issue state
+    match:
+      providers: [github]
+      operations: [github.issues.add_labels]
+      environments: [production]
+    when: >-
+      arguments.labels.all(label,
+        label in ["bug", "needs-triage", "security-review"])
+    effect: require_approval
+    approval:
+      approver_groups: [maintainers]
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  - id: deny-repository-deletion
+    match:
+      operations: [github.repository.delete]
+    effect: deny

@@ -1,0 +1,197 @@
+openapi: 3.0.3
+info:
+  title: Raid API
+  version: 0.1.0-draft
+  description: >-
+    Agent-native policy and approval engine. Decisions are evaluated against
+    precompiled deterministic policy (CEL); approvals require human sign-off
+    and produce signed single-use receipts. Raw CEL errors, Jev bodies, and
+    policy internals are never returned.
+servers:
+  - url: http+unix://run/offense/raid/raid.sock
+    description: Local daemon (default embedded mode)
+paths:
+  /v1/decisions:
+    post:
+      summary: Evaluate a normalized action request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ActionRequest'}
+      responses:
+        '200':
+          description: Decision (allow, deny, or require_approval)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Decision'}
+        '400':
+          description: Request rejected before evaluation (unknown field, bad schema)
+          content: {$ref: '#/components/schemas/Error'}
+        '503':
+          description: Storage backpressure (fail closed)
+          content: {$ref: '#/components/schemas/Error'}
+  /v1/decisions/{id}:
+    get:
+      summary: Read safe decision state
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Decision state}
+        '404': {description: Not found}
+  /v1/decisions/{id}/wait:
+    get:
+      summary: Long-poll (max 30s) until terminal or approved
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - {name: timeout, in: query, schema: {type: string, example: 30s}}
+      responses:
+        '200': {description: Approval state snapshot (timeouts return current state)}
+  /v1/approvals:
+    get:
+      summary: List pending approvals visible to the approver
+      responses:
+        '200':
+          description: Array of approval views
+          content: {application/json: {schema: {type: array}}}
+  /v1/approvals/{id}:
+    get:
+      summary: Read one approval
+  /v1/approvals/{id}/approve:
+    post:
+      summary: Approve the exact request (optimistic concurrency)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_version]
+              properties:
+                expected_version: {type: integer, format: uint64}
+      responses:
+        '200': {description: Approval + signed receipt}
+        '409': {description: Version conflict, expiry, or policy change}
+        '403': {description: Approver not authorized}
+  /v1/approvals/{id}/deny:
+    post:
+      summary: Deny the request
+  /v1/approvals/{id}/cancel:
+    post:
+      summary: Cancel by the requesting session
+  /v1/receipts/{id}/consume:
+    post:
+      summary: Atomically consume a signed receipt (at-most-once)
+  /v1/approvals/stream:
+    get:
+      summary: SSE event stream (approval.created/updated/expired/consumed)
+      parameters:
+        - {name: Last-Event-ID, in: header, schema: {type: integer}}
+  /v1/policies/active:
+    get:
+      summary: Active bundle metadata
+  /v1/policies/validate:
+    post:
+      summary: Validate a candidate policy bundle
+  /v1/policies/activate:
+    post:
+      summary: Activate a bundle (admin approver only, RAID-SEC-011)
+  /v1/keys:
+    get:
+      summary: Receipt issuer public key
+components:
+  securitySchemes:
+    approverHeader:
+      type: apiKey
+      in: header
+      name: X-Raid-Approver
+  schemas:
+    ActionRequest:
+      type: object
+      required: [schema_version, request_id, principal, action, resource, arguments, context]
+      properties:
+        schema_version: {type: integer, const: 1}
+        request_id: {type: string}
+        principal:
+          type: object
+          required: [subject_id, agent_id, session_id, runtime, groups, trust_level, revision]
+          properties:
+            subject_id: {type: string}
+            agent_id: {type: string}
+            session_id: {type: string}
+            runtime: {type: string}
+            groups: {type: array, items: {type: string}}
+            trust_level: {type: string}
+            revision: {type: integer, format: uint64}
+        action:
+          type: object
+          required: [provider, operation, effect]
+          properties:
+            provider: {type: string}
+            operation: {type: string, pattern: '^[a-z][a-z0-9_.-]*\.[a-z][a-z0-9_.-]*$'}
+            effect: {enum: [read, write, delete, execute, admin]}
+        resource:
+          type: object
+          required: [type, id, environment, attributes]
+          properties:
+            type: {type: string}
+            id: {type: string}
+            environment: {type: string}
+            attributes: {type: object, additionalProperties: {type: string}}
+        arguments:
+          type: object
+          additionalProperties: {$ref: '#/components/schemas/TypedValue'}
+        context:
+          type: object
+          required: [timestamp, source_product, source_version, source_request_id, interactive]
+          properties:
+            timestamp: {type: string, format: date-time}
+            source_product: {type: string}
+            source_version: {type: string}
+            source_request_id: {type: string}
+            task_summary: {type: string}
+            interactive: {type: boolean}
+    TypedValue:
+      oneOf:
+        - type: object
+          required: [type, value]
+          properties: {type: {enum: [string, int64, uint64, bool, decimal, timestamp, duration, list, map]}}
+    Decision:
+      type: object
+      required: [id, effect, reason_code, request_hash, policy_bundle_id, policy_bundle_hash, matched_rule_ids, evaluated_at, evaluation_micros]
+      properties:
+        id: {type: string}
+        effect: {enum: [allow, deny, require_approval]}
+        reason_code: {type: string}
+        request_hash: {type: string}
+        policy_bundle_id: {type: string}
+        policy_bundle_hash: {type: string}
+        matched_rule_ids: {type: array, items: {type: string}}
+        approval:
+          type: object
+          properties:
+            id: {type: string}
+            state: {enum: [pending, approved, denied, expired, cancelled, consumed, superseded]}
+            expires_at: {type: string, format: date-time}
+        semantic:
+          type: object
+          properties:
+            escalation: {enum: [require_approval, deny]}
+            model: {type: string}
+            questions: {type: string}
+        evaluated_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        evaluation_micros: {type: integer}
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, retryable, request_id]
+          properties:
+            code:
+              enum: [REQUEST_INVALID, POLICY_EVALUATION_FAILED, POLICY_DENIED, APPROVAL_REQUIRED, APPROVAL_CONFLICT, APPROVAL_EXPIRED, APPROVAL_NOT_FOUND, UNAUTHORIZED, UNAVAILABLE, INTERNAL_ERROR]
+            message: {type: string}
+            retryable: {type: boolean}
+            request_id: {type: string}

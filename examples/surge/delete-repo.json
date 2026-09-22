@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "request_id": "surge:act_03J",
+  "principal": {
+    "subject_id": "usr_imran",
+    "agent_id": "agt_claude",
+    "session_id": "ses_9821",
+    "runtime": "claude-code",
+    "groups": ["engineering"],
+    "trust_level": "local-session",
+    "revision": 4
+  },
+  "action": {
+    "provider": "github",
+    "operation": "github.repository.delete",
+    "effect": "delete"
+  },
+  "resource": {
+    "type": "github.repository",
+    "id": "repo:991234567",
+    "environment": "production",
+    "attributes": {
+      "repository_id": "991234567"
+    }
+  },
+  "arguments": {},
+  "context": {
+    "timestamp": "2026-09-22T20:00:00Z",
+    "source_product": "surge",
+    "source_version": "0.1.0",
+    "source_request_id": "act_03J",
+    "task_summary": "delete repository",
+    "interactive": true
+  }
+}

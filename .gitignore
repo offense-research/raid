@@ -1,0 +1,8 @@
+/raid
+/raidd
+*.db
+*.db-*
+*.seed
+*.sock
+/go.sum
+/obj/

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://offense.dev/raid/v1alpha1/action.schema.json",
+  "title": "Raid ActionRequest",
+  "type": "object",
+  "required": ["schema_version", "request_id", "principal", "action", "resource", "arguments", "context"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "principal": {
+      "type": "object",
+      "required": ["subject_id", "agent_id", "session_id", "runtime", "groups", "trust_level", "revision"],
+      "properties": {
+        "subject_id": { "type": "string", "minLength": 1 },
+        "agent_id": { "type": "string", "minLength": 1 },
+        "session_id": { "type": "string", "minLength": 1 },
+        "runtime": { "type": "string" },
+        "groups": { "type": "array", "items": { "type": "string" } },
+        "trust_level": { "type": "string" },
+        "revision": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["provider", "operation", "effect"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "operation": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*\\.[a-z][a-z0-9_.-]*$", "maxLength": 128 },
+        "effect": { "enum": ["read", "write", "delete", "execute", "admin"] }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "required": ["type", "id", "environment", "attributes"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "id": { "type": "string" },
+        "environment": { "type": "string" },
+        "attributes": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/typed" }
+    },
+    "context": {
+      "type": "object",
+      "required": ["timestamp", "source_product", "source_version", "source_request_id", "interactive"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "source_product": { "type": "string", "minLength": 1 },
+        "source_version": { "type": "string" },
+        "source_request_id": { "type": "string" },
+        "task_summary": { "type": "string" },
+        "interactive": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "typed": {
+      "oneOf": [
+        { "$ref": "#/$defs/typed_compound" },
+        { "$ref": "#/$defs/plain" }
+      ]
+    },
+    "typed_compound": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {
+          "enum": ["string", "int64", "uint64", "bool", "decimal", "timestamp", "duration", "list", "map"]
+        }
+      }
+    },
+    "plain": {
+      "type": ["string", "integer", "boolean", "null"],
+      "description": "Plain JSON values are normalized into the typed union"
+    }
+  }
+}
