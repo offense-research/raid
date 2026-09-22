@@ -94,6 +94,15 @@ Single Go module (`offense.dev/raid`):
 Environment: `RAID_SOCKET`, `RAID_APPROVER`, `RAID_DB`, `RAID_KEY`,
 `TYPESAFE_API_KEY` (enables the Jev adapter), `RAID_SESSION`.
 
+## Provisioning skill
+
+A drop-in agent skill for installing and provisioning Raid is included at
+`skills/raid/SKILL.md` (install it as a skill root entry, e.g.
+`$HOME/.agents/skills/raid/SKILL.md`). It drives
+`tools/raid-provision.sh`, which builds the binary, prepares the data
+directory, boots `raidd` with a seeded approver and the starter policy, and
+runs a verifiable demo (allow / require_approval→approve→consume / deny).
+
 ## Security
 
 See `docs/threat-model.md` for the invariants and accepted MVP limitations.
