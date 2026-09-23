@@ -1,5 +1,9 @@
 # Raid
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
+[![CI](https://github.com/offense/raid/actions/workflows/ci.yml/badge.svg)](https://github.com/offense/raid/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/badge/Go-1.26+-blue)](go.mod)
+
 Raid is a fast, agent-native **policy and approval engine**. An agent (or
 Surge, an execution proxy) submits a normalized proposed action; Raid
 evaluates precompiled deterministic policy (CEL) and returns
@@ -12,6 +16,27 @@ Code defines authority.      # Go + precompiled CEL, microseconds
 Jev identifies ambiguity.    # optional TypeSafe Jev, escalation-only
 Humans resolve consequence.  # Charm Bubble Tea approval TUI
 ```
+
+## The problem
+
+Agents can act, but nobody can answer one question cheaply: *"is this
+specific agent allowed to perform this exact action, under these
+conditions, right now?"* Teams end up with either blanket
+"confirm every tool call" prompts (which developers burn out on and click
+through) or no guardrails at all (which turns one prompt-injection mistake
+into a production write).
+
+Raid is the middle path: **safe, routine actions pass in microseconds
+without a prompt; consequential ones surface once, to a human, with a
+signed, single-use receipt bound to the exact request.** The decision
+engine is deterministic policy (Go + precompiled CEL) — a model is never
+the arbiter of authority. A configured semantic guard can escalate
+ambiguous actions to approval, but it can never reduce a deterministic
+restriction.
+
+Who this is for: teams building agents, automation, or execution proxies
+(Surge-style) who want auditable bounds on what those agents may do —
+without making developers wait on routine work.
 
 - **Fast by construction** — policies compile before activation; active
   bundles are immutable behind an atomic pointer; the deterministic path
@@ -33,6 +58,10 @@ make            # builds ./raid and ./raidd (raidd is a symlink)
 make test       # unit + integration suites
 make bench      # spec benchmark suite
 ```
+
+License: Apache-2.0 (`LICENSE`). Reporting: `SECURITY.md`. Contributing:
+`CONTRIBUTING.md`. Changes: `CHANGELOG.md`. Agent instructions:
+`llms.txt`. Business model: `docs/open-source-and-pricing.md`.
 
 ## Quick demo (10 steps from the spec)
 
@@ -114,6 +143,16 @@ the unpublished-repo fallback):
 > https://github.com/offense/raid/blob/main/skills/raid/SKILL.md
 > (raw: https://raw.githubusercontent.com/offense/raid/main/skills/raid/SKILL.md).
 > Then use the Raid skill when working on this project.
+
+## Documentation
+
+- `docs/threat-model.md` — security invariants (RAID-SEC-001..015) and accepted MVP limitations
+- `docs/policy-language.md` — policy bundles, the CEL environment, rule combination
+- `docs/approvals.md` — approval lifecycle, TTLs, receipts, events
+- `docs/jev.md` — TypeSafe Jev integration, escalation rules, sanitizer
+- `docs/performance.md` — latency contract, audit modes, benchmarks
+- `docs/open-source-and-pricing.md` — OSS/hosted boundary and pricing model
+- `api/openapi.yaml` + `api/*.schema.json` — wire contracts
 
 ## Security
 
