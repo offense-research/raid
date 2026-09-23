@@ -103,6 +103,18 @@ A drop-in agent skill for installing and provisioning Raid is included at
 directory, boots `raidd` with a seeded approver and the starter policy, and
 runs a verifiable demo (allow / require_approval→approve→consume / deny).
 
+**Paste this into any agent to install the skill** (see `PROMPT.md` for
+the unpublished-repo fallback):
+
+> Install the Raid skill. If you're in Claude Code, run
+> `claude plugin marketplace add offense/raid`,
+> then `claude plugin install raid@offense/raid`. If you're in another agent,
+> run `npx skills add offense/raid --skill raid` and select your agent. Use
+> one installation method. You can read the skill directly at
+> https://github.com/offense/raid/blob/main/skills/raid/SKILL.md
+> (raw: https://raw.githubusercontent.com/offense/raid/main/skills/raid/SKILL.md).
+> Then use the Raid skill when working on this project.
+
 ## Security
 
 See `docs/threat-model.md` for the invariants and accepted MVP limitations.
