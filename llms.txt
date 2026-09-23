@@ -1,0 +1,35 @@
+# llms.txt — instructions for AI coding agents
+
+Raid is a Go policy and approval engine (daemon `raidd` + CLI `raid`) with a
+single-binary build (`go build -o raid ./main; ln -sf raid raidd`) and a
+committed `go.sum` for hermetic module resolution. There is no `internal/`
+tree: Go reserves that name, so implementation lives under `core/`.
+
+Key invariants (see `docs/threat-model.md`):
+
+- Deterministic policy (CEL) runs first; a deny never calls Jev and never
+  creates an approval.
+- Jev is escalation-only: final = max(base, semantic) under
+  allow < require_approval < deny.
+- Approvals bind the SHA-256 canonical request hash; receipts are Ed25519
+  signed, single-use, at-most-once consume.
+- Missing/invalid policy fails closed (deny). Jev failures escalate to
+  require_approval minimum.
+- Untrusted text is sanitized before TUI rendering (no terminal control
+  bytes).
+
+Testing: `go test` (unit + e2e), `go test -bench=Benchmark -benchmem -v
+./core/bench`. Benchmark discipline in `docs/performance.md`: record CPU,
+Go version, rule counts, candidates, argument size, audit mode.
+
+Schema changes to the request, request hash, receipt claims, or policy
+language are breaking: update `api/*.yaml|json`, canonical tests, and
+`CHANGELOG.md`.
+
+Raw Go string literals (backticks) do not process escapes: JSON/HTTP/SSE
+framing strings must use regular strings with explicit `\n`/`\r` escapes.
+
+Provisioning: `tools/raid-provision.sh` (skill at `skills/raid/SKILL.md`).
+Charge model: local engine is Apache-2.0 open source; hosted coordination
+(SSO/SCIM, multi-channel approvals, org policy distribution, Jev budgets,
+retention/compliance) is the commercial product (`docs/open-source-and-pricing.md`).

@@ -22,14 +22,14 @@ verifiable demo. Every step below is also doable by hand.
 - Go 1.26+ (`go version`) and `curl`.
 - The Raid repository, or a clone of it.
 - Go module resolution uses the local `go.sum`; do not edit it. If a build
-  reports `missing go.sum entry`, run `env -u GOMOD go get -u ./...` at the
-  repo root, then rebuild.
+  reports `missing go.sum entry`, run `go get -u ./...` at the repo root,
+  then rebuild (go.sum is committed; do not ignore it).
 
 ## 1. Install
 
 ```sh
 cd <raid-repo>
-env -u GOMOD go build -o raid ./main
+go build -o raid ./main
 ln -sf raid raidd        # argv[0]-dispatched daemon entry
 ```
 

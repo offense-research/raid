@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: go.sum
+
+      - name: Build
+        run: |
+          go build -o raid ./main
+          ln -sf raid raidd
+          ./raid version
+
+      - name: Unit + integration tests
+        run: go test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/tui ./pkg/raidclient
+
+      - name: Provisioning smoke (fresh deploy + demo)
+        run: |
+          RAID_PREFIX="$RUNNER_TEMP/raid" sh tools/raid-provision.sh >/dev/null 2>&1 \
+            || { cat "$RUNNER_TEMP/raid/raidd.log"; exit 1; }
+          export RAID_SOCKET="$RUNNER_TEMP/raid/raid.sock"
+          ./raid doctor
+
+  bench:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: go.sum
+      - name: Benchmark suite
+        run: go test -bench=Benchmark -benchmem -v ./core/bench

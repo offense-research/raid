@@ -9,10 +9,10 @@ all:
 .PHONY: all test bench clean install
 
 test:
-	env -u GOMOD $(GO) test ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/tui ./pkg/raidclient
+	$(GO) test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/tui ./pkg/raidclient
 
 bench:
-	env -u GOMOD $(GO) test -bench=Benchmark -benchmem -v ./core/bench
+	$(GO) test -bench=Benchmark -benchmem -v ./core/bench
 
 clean:
 	rm -f raid raidd
