@@ -14,6 +14,10 @@ set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="${RAID_REPO:-$(dirname "$HERE")}"
 PREFIX="${RAID_PREFIX:-/var/lib/offense/raid}"
+# Unprivileged fallback: user state dir when the system prefix is not writable.
+if ! mkdir -p "$PREFIX" 2>/dev/null; then
+  PREFIX="${RAID_PREFIX:-$HOME/.local/state/offense/raid}"
+fi
 SOCK="${RAID_SOCKET:-$PREFIX/raid.sock}"
 DB="${RAID_DB:-$PREFIX/raid.db}"
 KEY="${RAID_KEY:-$PREFIX/ed25519.seed}"
