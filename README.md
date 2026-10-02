@@ -111,6 +111,7 @@ Single Go module (`offense.dev/raid`):
 - `core/api` — HTTP/Unix-socket surface and error model
 - `core/tui` — Charm Bubble Tea v2 approval UI + sanitizer
 - `core/jev` — TypeSafe System One adapter, sanitizer, thresholds, cache
+- `core/nlpolicy` — OpenRouter natural-language → policy draft (authoring aid)
 - `core/server` — daemon boot
 - `pkg/raidclient` — Go client for CLI / TUI / Surge
 - `api/` — OpenAPI and JSON schemas · `docs/` — threat model, policy
@@ -118,19 +119,89 @@ Single Go module (`offense.dev/raid`):
 
 ## Configuration
 
-`raidd` flags: `--socket`, `--db`, `--policy`, `--key`, `--tcp`,
-`--uid`, `--approver <subject:groups>`, `--forbid-self-approval`.
+`raidd` flags: `--socket`, `--db`, `--policy`, `--policy-preset <name>`, `--key`,
+`--tcp`, `--uid`, `--approver <subject:groups>`, `--solo`,
+`--forbid-self-approval`.
 Environment: `RAID_SOCKET`, `RAID_APPROVER`, `RAID_DB`, `RAID_KEY`,
-`TYPESAFE_API_KEY` (enables the Jev adapter), `RAID_SESSION`.
+`RAID_STATE_DIR`, `RAID_ENV`, `TYPESAFE_API_KEY` (enables the Jev adapter),
+`OPENROUTER_API_KEY` (enables `raid policy from-language`), `RAID_SESSION`.
+
+## Solo mode for individual engineers
+
+A single engineer has no second reviewer, so Raid's value shifts from
+authorization to **guardrail + confirm + journal**. `--solo` gives you exactly
+that, with no root and no approver setup:
+
+```sh
+./raidd --solo &            # XDG state dir, self-approval, deny-first preset
+./raid doctor
+./raid log                  # what did my agent do? (decisions/approvals/audit)
+./raid grants               # active operation/session confirmations
+```
+
+- **Guardrail first.** The `solo-dev-safe` preset *denies outright* the
+  irreversible commands (`rm -rf /`, `rm -rf ~`, `/etc`/`/usr` wipes,
+  secret exfiltration, force-push to `main`/`master`). The agent sees the
+  reason and reroutes — no human latency.
+- **One-keypress confirmations.** Everything consequential (deletes, exec,
+  force-push, prod writes) is `require_approval`; approving in the TUI is a
+  single key. `allow_scope: operation` mints a time-boxed grant so a repetitive
+  low-risk action is not re-approved for every invocation.
+- **A journal.** `raid log` merges decisions, approvals, and audit events into
+  one timeline — the second pair of eyes on your own agent.
+
+Pick a posture with presets:
+
+```sh
+./raid policy presets                       # list
+./raid policy init --preset solo-dev-safe   # write a bundle you can edit
+./raidd --policy-preset review-only         # boot straight from a preset
+```
+
+`review-only` (inspect, change nothing) and `ci-agent` (build/test in dev,
+confirm in prod, never rewrite history) cover the other common postures.
+
+## Writing policies in plain language
+
+Connect an OpenRouter key and describe your permissions in English instead of
+writing YAML+CEL by hand:
+
+```sh
+export OPENROUTER_API_KEY=sk-or-...
+./raid policy from-language \
+  --statement "allow GitHub issue reads on staging, require approval before modifying production issues, deny repository deletion" \
+  --out my-policy.yaml
+./raid policy validate my-policy.yaml
+```
+
+The drafted policy only takes effect after passing the same deterministic
+load + compile gate as a hand-written one, and a draft that fails that gate is
+discarded. See `docs/policy-language.md`.
+
+For a Charm-stack terminal UI, run the same command interactively (needs a
+TTY): `./raid policy from-language --interactive` — set the key, describe your
+permissions, `d` to draft, review the YAML, then `s` to save or `a` to activate
+(`tab` switches fields, `i` edits, `q` quits).
+
+## Using with coding agents (Claude Code)
+
+Raid can gate a coding agent's tool calls. `integrations/claude-code/` ships a
+Claude Code `PreToolUse` hook (`hook_gate.py`) that maps each Bash/Edit/Write
+call to a normalized action and blocks on `deny`/`require_approval`, plus an
+MCP server (`raid_check`, `raid_pending`), a starter policy
+(`coding-agent.policy.yaml`), and an installer that boots raidd and writes
+`.claude/settings.json`.
+
+```sh
+cd integrations/claude-code && RAID_ENV=development ./install.sh
+```
+
+See `integrations/claude-code/README.md` for details and security invariants.
 
 ## Provisioning skill
 
 A drop-in agent skill for installing and provisioning Raid is included at
-`skills/raid/SKILL.md` (install it as a skill root entry, e.g.
-`$HOME/.agents/skills/raid/SKILL.md`). It drives
-`tools/raid-provision.sh`, which builds the binary, prepares the data
-directory, boots `raidd` with a seeded approver and the starter policy, and
-runs a verifiable demo (allow / require_approval→approve→consume / deny).
+`skills/raid/SKILL.md`
 
 **Paste this into any agent to install the skill** (see `PROMPT.md` for
 the unpublished-repo fallback):

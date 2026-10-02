@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"offense.dev/raid/core/util"
 	"offense.dev/raid/pkg/raidclient"
 )
 
@@ -24,6 +25,10 @@ func Dispatch(args []string) int {
 		return cmdDecision(rest)
 	case "approval":
 		return cmdApproval(rest)
+	case "grants":
+		return cmdGrants(rest)
+	case "log":
+		return cmdLog(rest)
 	case "doctor":
 		return cmdDoctor(rest)
 	case "approve":
@@ -45,8 +50,14 @@ func printUsage() {
 
 commands:
   policy validate|test|diff|activate|init <file>...
+  policy init --preset <name> [file]           # solo-dev-safe|review-only|ci-agent
+  policy presets                               # list onboarding presets
+  policy from-language --statement <nl perms> [--key <openrouter>] ...
+  policy from-language --interactive            # Charm TUI authoring
   decision eval --request <request.json>
   approval list|approve|deny|cancel
+  grants            (list active scoped grants)
+  log [--limit N]   (activity journal: decisions, approvals, audit)
   doctor
   approve           (interactive TUI; requires a TTY)
 `)
@@ -54,11 +65,7 @@ commands:
 
 // socketPath returns the configured socket.
 func socketPath() string {
-	v := os.Getenv("RAID_SOCKET")
-	if v == "" {
-		return "/run/offense/raid/raid.sock"
-	}
-	return v
+	return util.DefaultSocket()
 }
 
 func approverOf() string {

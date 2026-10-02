@@ -120,6 +120,25 @@ var migrations = []string{
 		escalation       TEXT NOT NULL,
 		created_at_ns    INTEGER NOT NULL
 	);`,
+	// v14: scoped approvals. allow_scope records how far an approval's
+	// authority reaches (exact_request | operation | session).
+	`ALTER TABLE approvals ADD COLUMN allow_scope TEXT NOT NULL DEFAULT 'exact_request';`,
+	// v15: operation/session grants minted when a scoped approval is resolved.
+	`CREATE TABLE IF NOT EXISTS grants (
+		id                 TEXT PRIMARY KEY,
+		approval_id        TEXT NOT NULL,
+		principal_id       TEXT NOT NULL,
+		agent_id           TEXT NOT NULL,
+		session_id         TEXT NOT NULL,
+		operation          TEXT NOT NULL,
+		environment        TEXT NOT NULL,
+		scope              TEXT NOT NULL,
+		policy_bundle_hash BLOB NOT NULL,
+		created_at_ns      INTEGER NOT NULL,
+		expires_at_ns      INTEGER NOT NULL
+	);`,
+	`CREATE INDEX IF NOT EXISTS grants_lookup
+		ON grants (principal_id, agent_id, operation, environment, expires_at_ns);`,
 }
 
 // migrate applies pending migrations inside transactions.

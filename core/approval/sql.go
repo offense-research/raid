@@ -29,14 +29,34 @@ func insertApprovalTx(tx *sql.Tx, a *Approval) error {
 	_, err := tx.Exec(`INSERT INTO approvals
 		(id, decision_id, request_hash, principal_id, agent_id, session_id,
 		 operation, resource_type, resource_id, environment, arguments_summary,
-		 policy_bundle_hash, matched_rule_ids, required_groups, quorum, state,
-		 version, created_at_ns, expires_at_ns)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 policy_bundle_hash, matched_rule_ids, required_groups, quorum, allow_scope,
+		 state, version, created_at_ns, expires_at_ns)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.id, a.decisionID, a.requestHash, a.principalID, a.agentID, a.sessionID,
 		a.operation, a.resourceType, a.resourceID, a.environment,
 		summaryJSON(a.argumentsSummary), a.policyBundleHash,
 		strings.Join(a.matchedRuleIDs, ","), strings.Join(a.requiredGroups, ","),
-		a.quorum, StatePending, a.version, a.createdAt.UnixNano(), a.expiresAt.UnixNano())
+		a.quorum, scopeOrDefault(a.allowScope), StatePending, a.version,
+		a.createdAt.UnixNano(), a.expiresAt.UnixNano())
+	return err
+}
+
+// scopeOrDefault normalizes an empty scope to exact_request.
+func scopeOrDefault(scope string) string {
+	if scope == "" {
+		return "exact_request"
+	}
+	return scope
+}
+
+// insertGrantTx mints a scoped grant inside the approval transaction.
+func insertGrantTx(tx *sql.Tx, g *Grant) error {
+	_, err := tx.Exec(`INSERT INTO grants
+		(id, approval_id, principal_id, agent_id, session_id, operation, environment,
+		 scope, policy_bundle_hash, created_at_ns, expires_at_ns)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		g.id, g.approvalID, g.principalID, g.agentID, g.sessionID, g.operation,
+		g.environment, g.scope, g.policyBundleHash, g.createdAt.UnixNano(), g.expiresAt.UnixNano())
 	return err
 }
 
@@ -107,6 +127,7 @@ type sqlApprovalRow struct {
 	matchedRuleIDs     string
 	requiredGroups     string
 	quorum             uint32
+	allowScope         string
 	state              string
 	version            uint64
 	createdAtNs        int64
@@ -119,7 +140,7 @@ func columnList() string {
 	return `id, decision_id, request_hash, principal_id, agent_id, session_id,
 	       operation, resource_type, resource_id, environment,
 	       arguments_summary, policy_bundle_hash, matched_rule_ids,
-	       required_groups, quorum, state, version, created_at_ns, expires_at_ns, resolved_at_ns`
+	       required_groups, quorum, allow_scope, state, version, created_at_ns, expires_at_ns, resolved_at_ns`
 }
 
 func (row *sqlApprovalRow) toApproval() *Approval {
@@ -138,6 +159,7 @@ func (row *sqlApprovalRow) toApproval() *Approval {
 		matchedRuleIDs:   splitComma(row.matchedRuleIDs),
 		requiredGroups:   splitComma(row.requiredGroups),
 		quorum:           row.quorum,
+		allowScope:       scopeOrDefault(row.allowScope),
 		state:            State(row.state),
 		version:          row.version,
 		createdAt:        time.Unix(0, row.createdAtNs).UTC(),

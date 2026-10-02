@@ -1,0 +1,123 @@
+apiVersion: offense.dev/raid/v1alpha1
+kind: PolicyBundle
+metadata:
+  name: claude-code
+  revision: 1
+defaults:
+  effect: deny
+rules:
+  # Deny outright (never merely approve) the irreversible or
+  # credential-exfiltrating commands. The adapter normalizes these into the
+  # `destructive` / `exfil` / `protected_branch` resource attributes.
+  - id: deny-catastrophic
+    description: >-
+      Irreversible, system-wide, credential-exfiltrating, or protected-branch
+      rewriting commands are blocked outright.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.delete
+        - shell.execute
+        - shell.write
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.destructive) && resource.attributes.destructive == "true") ||
+      (has(resource.attributes.exfil) && resource.attributes.exfil == "true") ||
+      (has(resource.attributes.protected_branch) && resource.attributes.protected_branch == "true" &&
+        (action.operation == "git.force_push" || action.operation == "git.rewrite"))
+    effect: deny
+
+  # Reading files and safe read-only commands are always fine.
+  - id: allow-reads
+    description: Read-only file access and safe shell inspection.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - network.fetch
+    effect: allow
+
+  # Non-production writes and package installs are allowed.
+  - id: allow-writes-dev
+    description: File edits and package installs outside production.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - filesystem.write
+        - package.install
+    when: >-
+      resource.environment != "production"
+    effect: allow
+
+  # Any write/install against production needs a human.
+  - id: approval-writes-prod
+    description: File writes or package installs in production.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - filesystem.write
+        - package.install
+    when: >-
+      resource.environment == "production"
+    effect: require_approval
+    approval:
+      approver_groups: [maintainers]
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  # Starting services or containers is consequential, always.
+  - id: approval-exec
+    description: Running services, containers, or privileged commands.
+    match:
+      providers: [claude-code]
+      operations:
+        - service.exec
+        - container.exec
+        - shell.execute
+    effect: require_approval
+    approval:
+      approver_groups: [maintainers]
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  # Destructive or repo-mutating operations always need a human.
+  - id: approval-destructive
+    description: Deletes, force pushes, git rewrites, DB and cloud mutation.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.delete
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    effect: require_approval
+    approval:
+      approver_groups: [maintainers]
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  # Explicitly blocked operations never proceed.
+  - id: deny-listed
+    description: Operations that must never run.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.denied
+    effect: deny

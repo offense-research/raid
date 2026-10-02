@@ -79,6 +79,31 @@ Key points:
 - `TYPESAFE_API_KEY` (env) enables the Jev adapter when a policy declares a
   `semantic_guard`; without a key the guard is effectively `off`.
 
+## 3b. Solo mode (single engineer, no root)
+
+For one person driving a coding agent there is no second reviewer. `--solo`
+sets the unprivileged posture in one flag:
+
+```sh
+./raidd --solo &                 # XDG state dir, self-approval, solo-dev-safe preset
+export RAID_SOCKET="${XDG_STATE_HOME:-$HOME/.local/state}/offense/raid/raid.sock"
+./raid doctor
+./raid log                       # activity journal (decisions/approvals/audit)
+./raid grants                    # active scoped confirmations
+```
+
+- Defaults: socket/db/key under `RAID_STATE_DIR` (or
+  `$XDG_STATE_HOME/offense/raid`, else `~/.local/state/offense/raid`); the local
+  user is auto-seeded as their own approver; `forbid-self-approval` is off.
+- Policy defaults to the `solo-dev-safe` preset (deny-first guardrails +
+  one-key confirmations). Override with `--policy-preset review-only|ci-agent`
+  or `--policy <file>`.
+- List/write presets: `raid policy presets`,
+  `raid policy init --preset <name> [file]`.
+- Consequential, low-risk ops can use `allow_scope: operation` so one approval
+  mints a time-boxed grant instead of re-approving every invocation. Keep the
+  destructive tier on `exact_request`.
+
 ## 4. Readiness and operation
 
 - Check: `raid doctor` → `raidd: reachable` + active bundle JSON.
@@ -96,7 +121,7 @@ Key points:
   `POST /v1/approvals/{id}/approve|deny|cancel`,
   `POST /v1/receipts/{id}/consume`, `GET /v1/approvals/stream` (SSE),
   `GET /v1/policies/active`, `POST /v1/policies/validate|activate`,
-  `GET /v1/keys`.
+  `GET /v1/keys`, `GET /v1/journal`, `GET /v1/grants`.
 
 ## 5. Verification
 

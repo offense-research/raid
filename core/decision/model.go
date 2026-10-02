@@ -72,6 +72,7 @@ type Decision struct {
 	matchedRuleIDs   []string
 	approval         *ApprovalReference
 	approvalConfig   *policy.ApprovalConfig
+	grantID          string
 	semantic         *SemanticSummary
 	evaluatedAt      time.Time
 	expiresAt        time.Time
@@ -87,6 +88,7 @@ func (d *Decision) PolicyBundleHash() []byte   { return d.policyBundleHash }
 func (d *Decision) MatchedRuleIDs() []string   { return d.matchedRuleIDs }
 func (d *Decision) Approval() *ApprovalReference { return d.approval }
 func (d *Decision) ApprovalConfig() *policy.ApprovalConfig { return d.approvalConfig }
+func (d *Decision) GrantID() string             { return d.grantID }
 func (d *Decision) Semantic() *SemanticSummary { return d.semantic }
 func (d *Decision) EvaluatedAt() time.Time     { return d.evaluatedAt }
 func (d *Decision) ExpiresAt() time.Time       { return d.expiresAt }
@@ -118,7 +120,8 @@ func (d *Decision) WithSemantic(s *SemanticSummary) *Decision {
 		id: d.id, effect: d.effect, reasonCode: d.reasonCode,
 		requestHash: d.requestHash, policyBundleID: d.policyBundleID,
 		policyBundleHash: d.policyBundleHash, matchedRuleIDs: d.matchedRuleIDs,
-		approval: d.approval, approvalConfig: d.approvalConfig, semantic: s,
+		approval: d.approval, approvalConfig: d.approvalConfig, grantID: d.grantID,
+		semantic: s,
 		evaluatedAt: d.evaluatedAt, expiresAt: d.expiresAt,
 		evaluationMicros: d.evaluationMicros,
 	}
@@ -131,7 +134,8 @@ func (d *Decision) WithApprovalConfig(c *policy.ApprovalConfig) *Decision {
 		id: d.id, effect: d.effect, reasonCode: d.reasonCode,
 		requestHash: d.requestHash, policyBundleID: d.policyBundleID,
 		policyBundleHash: d.policyBundleHash, matchedRuleIDs: d.matchedRuleIDs,
-		approval: d.approval, approvalConfig: c, semantic: d.semantic,
+		approval: d.approval, approvalConfig: c, grantID: d.grantID,
+		semantic: d.semantic,
 		evaluatedAt: d.evaluatedAt, expiresAt: d.expiresAt,
 		evaluationMicros: d.evaluationMicros,
 	}
@@ -143,7 +147,24 @@ func (d *Decision) WithApproval(a *ApprovalReference) *Decision {
 		id: d.id, effect: d.effect, reasonCode: d.reasonCode,
 		requestHash: d.requestHash, policyBundleID: d.policyBundleID,
 		policyBundleHash: d.policyBundleHash, matchedRuleIDs: d.matchedRuleIDs,
-		approval: a, approvalConfig: d.approvalConfig, semantic: d.semantic,
+		approval: a, approvalConfig: d.approvalConfig, grantID: d.grantID,
+		semantic: d.semantic,
+		evaluatedAt: d.evaluatedAt, expiresAt: d.expiresAt,
+		evaluationMicros: d.evaluationMicros,
+	}
+}
+
+// WithGrantCoverage rewrites a require_approval decision into an allow when a
+// previously approved scoped grant covers the request. It records the grant id
+// so the audit trail shows the authorization came from a grant, not the
+// deterministic rules.
+func (d *Decision) WithGrantCoverage(grantID string) *Decision {
+	return &Decision{
+		id: d.id, effect: "allow", reasonCode: ReasonGrantCovered,
+		requestHash: d.requestHash, policyBundleID: d.policyBundleID,
+		policyBundleHash: d.policyBundleHash, matchedRuleIDs: d.matchedRuleIDs,
+		approval: nil, approvalConfig: d.approvalConfig, grantID: grantID,
+		semantic: d.semantic,
 		evaluatedAt: d.evaluatedAt, expiresAt: d.expiresAt,
 		evaluationMicros: d.evaluationMicros,
 	}
@@ -178,6 +199,10 @@ func (d *Decision) WriteJSON(sb *strings.Builder) () {
 		sb.WriteString(`,"expires_at":`)
 		canonical.WriteEscaped(sb, d.approval.expiresAt.Format(time.RFC3339))
 		sb.WriteString(`}`)
+	}
+	if d.grantID != "" {
+		sb.WriteString(`,"grant_id":`)
+		canonical.WriteEscaped(sb, d.grantID)
 	}
 	if d.semantic != nil {
 		sb.WriteString(`,"semantic":`)

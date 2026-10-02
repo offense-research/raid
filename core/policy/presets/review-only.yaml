@@ -1,0 +1,27 @@
+apiVersion: offense.dev/raid/v1alpha1
+kind: PolicyBundle
+metadata:
+  name: review-only
+  revision: 1
+defaults:
+  effect: deny
+rules:
+  # A read-only agent: it may inspect the world but never change it. Useful
+  # when reviewing a codebase, triaging, or pairing with a human driver.
+  - id: allow-reads
+    description: Read-only file access, inspection, and fetches.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+    effect: allow
+
+  - id: deny-all-mutation
+    description: This preset grants no write, delete, execute, or admin authority.
+    match:
+      providers: [claude-code]
+      effects: [write, delete, execute, admin]
+    effect: deny

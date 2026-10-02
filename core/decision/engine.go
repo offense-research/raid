@@ -19,6 +19,7 @@ const (
 	ReasonAllow            = "POLICY_ALLOW"
 	ReasonDeny             = "POLICY_DENY"
 	ReasonRequiresApproval = "POLICY_REQUIRES_APPROVAL"
+	ReasonGrantCovered     = "POLICY_GRANT_COVERED"
 )
 
 // DecisionTTL bounds how long any decision (allow or deny) may be cached by

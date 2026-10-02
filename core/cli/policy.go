@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"offense.dev/raid/core/canonical"
+	"offense.dev/raid/core/nlpolicy"
 	"offense.dev/raid/core/policy"
 	"offense.dev/raid/pkg/raidclient"
 )
@@ -28,6 +29,10 @@ func cmdPolicy(args []string) int {
 		return policyActivate(args[1:])
 	case "init":
 		return policyInit(args[1:])
+	case "presets":
+		return policyPresets(args[1:])
+	case "from-language":
+		return policyFromLanguage(args[1:])
 	}
 	log.Printf("raid: unknown policy subcommand %q", args[0])
 	return 2
@@ -52,14 +57,142 @@ rules:
 `
 
 func policyInit(args []string) int {
-	path := "raid-policy.yaml"
-	if len(args) >= 1 && args[0] != "" {
-		path = args[0]
+	path := ""
+	preset := ""
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch a {
+		case "--preset", "-p":
+			if i+1 < len(args) {
+				preset = args[i+1]
+				i++
+			}
+		default:
+			if len(a) > 0 && a[0] != '-' && path == "" {
+				path = a
+			}
+		}
+	}
+	if preset != "" {
+		data, ok := policy.Preset(preset)
+		if !ok {
+			log.Printf("raid: unknown preset %q (see: raid policy presets)", preset)
+			return 2
+		}
+		if path == "" {
+			path = preset + ".policy.yaml"
+		}
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			log.Fatalf("raid: %v", err)
+		}
+		fmt.Printf("wrote %s preset to %s\n", preset, path)
+		fmt.Printf("activate with: raid policy activate %s   (or boot raidd with --policy-preset %s)\n", path, preset)
+		return 0
+	}
+	if path == "" {
+		path = "raid-policy.yaml"
 	}
 	if err := os.WriteFile(path, []byte(starterPolicy), 0o644); err != nil {
 		log.Fatalf("raid: %v", err)
 	}
 	fmt.Printf("wrote starter policy to %s (deny by default; edit and run: raid policy activate %s)\n", path, path)
+	return 0
+}
+
+// policyPresets lists the embedded onboarding presets.
+func policyPresets(args []string) int {
+	_ = args
+	for _, name := range policy.PresetNames() {
+		fmt.Printf("%-14s %s\n", name, policy.PresetDescription(name))
+	}
+	return 0
+}
+
+// policyFromLanguage drafts a policy bundle from a natural-language statement
+// using an OpenRouter LLM. The draft is only trusted after it passes the
+// deterministic load + compile gate, and is emitted/activated only then.
+func policyFromLanguage(args []string) int {
+	var statement, key, model, outPath string
+	activate := false
+	interactive := false
+	for i, a := range args {
+		switch a {
+		case "--statement", "-s":
+			if i + 1 < len(args) {
+				statement = args[i+1]
+			}
+		case "--key":
+			if i + 1 < len(args) {
+				key = args[i+1]
+			}
+		case "--model":
+			if i + 1 < len(args) {
+				model = args[i+1]
+			}
+		case "--out":
+			if i + 1 < len(args) {
+				outPath = args[i+1]
+			}
+		case "--activate":
+			activate = true
+		case "--interactive", "-i":
+			interactive = true
+		}
+	}
+	if interactive {
+		if outPath != "" {
+			log.Printf("raid: --interactive does not take --out; save from inside the TUI")
+			return 2
+		}
+		return nlpolicy.Run()
+	}
+	if statement == "" {
+		log.Printf("raid: policy from-language --statement <natural language permissions> [--key KEY] [--model M] [--out FILE] [--activate]")
+		return 2
+	}
+	if key == "" {
+		key = os.Getenv(nlpolicy.KeyEnv)
+	}
+	if key == "" {
+		log.Printf("raid: an OpenRouter API key is required (set %s or pass --key)", nlpolicy.KeyEnv)
+		return 2
+	}
+	yamlText, terr := nlpolicy.Translate(nil, nlpolicy.TranslateOptions{ApiKey: key, Model: model}, statement)
+	if terr != nil {
+		log.Printf("raid: could not draft policy from language: %v", terr.Error())
+		return 1
+	}
+	// deterministic gate: an LLM draft is never authority until it validates
+	schema, lerr := policy.LoadBundle([]byte(yamlText), "language")
+	if lerr != nil {
+		log.Printf("raid: drafted policy did not validate: %v", lerr.Error())
+		return 1
+	}
+	compiled, cerr := policy.CompileBundle(schema, policy.CompileOptions{})
+	if cerr != nil {
+		log.Printf("raid: drafted policy did not compile: %v", cerr.Error())
+		return 1
+	}
+	if outPath != "" {
+		if err := os.WriteFile(outPath, []byte(yamlText), 0o644); err != nil {
+			log.Fatalf("raid: %v", err)
+		}
+		fmt.Printf("wrote drafted policy to %s (%d rules)\n", outPath, len(compiled.Rules()))
+	}
+	if activate {
+		client := raidclient.NewClient(socketPath())
+		resp, err := client.Post("/v1/policies/activate", yamlText, approverOf(), nil)
+		resp = checkErr(resp, err)
+		if resp.Status != 200 {
+			fmt.Println(resp.BodyString())
+			return 1
+		}
+		fmt.Println(resp.BodyString())
+		return 0
+	}
+	if outPath == "" && !activate {
+		fmt.Println(yamlText)
+	}
 	return 0
 }
 

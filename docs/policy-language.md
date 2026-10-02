@@ -37,8 +37,20 @@ Each rule has static `match` filters and a CEL `when` condition:
     approver_groups: [maintainers]
     quorum: 1            # MVP supports quorum 1 only
     ttl: 5m              # 30s..30m
-    allow_scope: exact_request
+    allow_scope: exact_request   # exact_request | operation | session
 ```
+
+`allow_scope` controls how far an approval's authority reaches:
+
+- `exact_request` (default, strongest) — the signed receipt is bound to the
+  exact request hash; a retry of a *different* request is rejected.
+- `operation` — approving also mints a durable, time-boxed grant covering the
+  same principal+agent+operation+environment until the approval expires.
+- `session` — the grant covers the same principal+agent+session regardless of
+  operation.
+
+Grants reduce re-approval friction for a single engineer driving an agent
+(see `raidd --solo`). Keep the destructive tier on `exact_request`.
 
 - A rule matches when **every non-empty** `match` field contains the
   request's value (AND across fields, OR within a field) **and** the `when`
@@ -110,3 +122,19 @@ Jev entirely.
 `WIDENS AUTHORITY`, `ADDS APPROVAL`, `REMOVES DENY`, `RESTRICTS`, and
 `REVIEW_REQUIRED` when equivalence cannot be proven statically (e.g. the
 CEL text changed).
+## Natural-language authoring (via OpenRouter)
+
+`raid policy from-language --statement "<permissions>" --key <OPENROUTER_KEY>`
+drafts a PolicyBundle from a plain-English description instead of writing YAML
+by hand. A constrained LLM (OpenRouter chat/completions, default
+`openrouter/auto`) emits a single YAML document; the CLI then runs that draft
+through the **identical deterministic gate as a file on disk** — strict YAML
+decode, schema checks, CEL compilation — and only writes (`--out FILE`) or
+activates (`--activate`) the draft if it validates and compiles.
+
+The model is an authoring aid, not an authority: a draft can never grant or
+loosen beyond what passes the deterministic compiler, and a failing draft is
+discarded with the error reported. The key is read from `OPENROUTER_API_KEY`
+or `--key`; `--model` overrides the model. Like Jev (`docs/jev.md`), outbound
+HTTPS delivery of the request is wired by the deployment; absent that, the
+command fails closed with a clear error and never activates anything.

@@ -71,7 +71,7 @@
             "approver_groups": { "type": "array", "items": { "type": "string" } },
             "quorum": { "type": "integer", "minimum": 1 },
             "ttl": { "type": "string", "pattern": "^([0-9]+)(ms|s|m|h|d)$" },
-            "allow_scope": { "enum": ["exact_request"], "default": "exact_request" }
+            "allow_scope": { "enum": ["exact_request", "operation", "session"], "default": "exact_request" }
           }
         }
       },

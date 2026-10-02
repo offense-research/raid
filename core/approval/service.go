@@ -83,6 +83,7 @@ func (s *Service) Create(d *decision.Decision, req *canonical.ActionRequest, cfg
 		matchedRuleIDs:   d.MatchedRuleIDs(),
 		requiredGroups:   cfg.ApproverGroups(),
 		quorum:           cfg.Quorum(),
+		allowScope:       scopeOrDefault(cfg.AllowScope()),
 		state:            StatePending,
 		version:          0,
 		createdAt:        now,
@@ -183,6 +184,13 @@ func (s *Service) Resolve(approvalID string, approve bool, approver Approver, ex
 		if err := insertReceiptTx(tx, claims, receipt, now); err != nil {
 			return nil, nil, nil, err
 		}
+		// A scoped approval also mints a durable grant covering similar,
+		// lower-risk requests until the approval expires.
+		if scopeOrDefault(appr.AllowScope()) != "exact_request" {
+			if err := insertGrantTx(tx, newGrant(appr, now)); err != nil {
+				return nil, nil, nil, err
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, nil, nil, err
@@ -277,7 +285,7 @@ func (s *Service) Get(id string) (*Approval, error) {
 		Scan(&row.id, &row.decisionID, &row.requestHash, &row.principalID, &row.agentID, &row.sessionID,
 			&row.operation, &row.resourceType, &row.resourceID, &row.environment,
 			&row.argumentsSummary, &row.policyBundleHash, &row.matchedRuleIDs,
-			&row.requiredGroups, &row.quorum, &row.state, &row.version,
+			&row.requiredGroups, &row.quorum, &row.allowScope, &row.state, &row.version,
 			&row.createdAtNs, &row.expiresAtNs, &resolved)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -307,7 +315,7 @@ func (s *Service) ListPending() ([]*Approval, error) {
 		if err := rows.Scan(&row.id, &row.decisionID, &row.requestHash, &row.principalID, &row.agentID, &row.sessionID,
 			&row.operation, &row.resourceType, &row.resourceID, &row.environment,
 			&row.argumentsSummary, &row.policyBundleHash, &row.matchedRuleIDs,
-			&row.requiredGroups, &row.quorum, &row.state, &row.version,
+			&row.requiredGroups, &row.quorum, &row.allowScope, &row.state, &row.version,
 			&row.createdAtNs, &row.expiresAtNs, &resolved); err != nil {
 			return nil, err
 		}
@@ -334,14 +342,16 @@ func (s *Service) ByDecision(decisionID string) (*Approval, error) {
 	return s.Get(id)
 }
 
-// SweepExpired marks expired approvals as expired (idempotent).
+// SweepExpired marks expired approvals as expired (idempotent) and reaps
+// expired scoped grants.
 func (s *Service) SweepExpired() (int64, error) {
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UTC()
 	res, err := s.store.Exec(`UPDATE approvals SET state = 'expired', version = version + 1, resolved_at_ns = ?
-		WHERE state = 'pending' AND expires_at_ns <= ?`, now, now)
+		WHERE state = 'pending' AND expires_at_ns <= ?`, now.UnixNano(), now.UnixNano())
 	if err != nil {
 		return 0, err
 	}
+	_ = s.sweepExpiredGrants(now)
 	return res.RowsAffected()
 }
 

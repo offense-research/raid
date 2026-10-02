@@ -24,7 +24,7 @@ jobs:
           ./raid version
 
       - name: Unit + integration tests
-        run: go test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/tui ./pkg/raidclient
+        run: go test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./pkg/raidclient
 
       - name: Provisioning smoke (fresh deploy + demo)
         run: |

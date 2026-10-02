@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"offense.dev/raid/core/canonical"
 	"offense.dev/raid/core/tui"
 	"offense.dev/raid/pkg/raidclient"
 )
@@ -138,6 +139,81 @@ func cmdDoctor(args []string) int {
 	}
 	fmt.Println("raidd:   reachable")
 	fmt.Println("policy:  " + resp.BodyString())
+	return 0
+}
+
+// cmdLog prints the merged activity journal (decisions, approvals, audit).
+func cmdLog(args []string) int {
+	limit := "50"
+	asJSON := false
+	for i, a := range args {
+		switch a {
+		case "--limit", "-n":
+			if i+1 < len(args) {
+				limit = args[i+1]
+			}
+		case "--json":
+			asJSON = true
+		}
+	}
+	client := raidclient.NewClient(socketPath())
+	resp, err := client.Get("/v1/journal?limit="+limit, "")
+	resp = checkErr(resp, err)
+	if asJSON {
+		fmt.Println(resp.BodyString())
+		return 0
+	}
+	v, perr := canonical.Decode(resp.Body, canonical.DecodeOptions{MaxBytes: 4 * 1024 * 1024})
+	if perr != nil || v.Kind() != canonical.VObject {
+		fmt.Println(resp.BodyString())
+		return 0
+	}
+	entries, ok := v.AsMap()["entries"]
+	if !ok || entries.Kind() != canonical.VList {
+		fmt.Println("(no journal entries)")
+		return 0
+	}
+	items := entries.AsList()
+	if len(items) == 0 {
+		fmt.Println("(no journal entries)")
+		return 0
+	}
+	for _, it := range items {
+		if it.Kind() != canonical.VObject {
+			continue
+		}
+		m := it.AsMap()
+		fmt.Printf("%-20s %-9s %-22s %s\n",
+			atStr(m["at"]), kindStr(m["kind"]), kindStr(m["id"]), kindStr(m["detail"]))
+	}
+	return 0
+}
+
+func atStr(v canonical.Value) string {
+	if v.Kind() == canonical.VString {
+		s := v.AsString()
+		if len(s) > 19 {
+			return s[:19]
+		}
+		return s
+	}
+	return ""
+}
+
+func kindStr(v canonical.Value) string {
+	if v.Kind() == canonical.VString {
+		return v.AsString()
+	}
+	return ""
+}
+
+// cmdGrants lists active scoped grants.
+func cmdGrants(args []string) int {
+	_ = args
+	client := raidclient.NewClient(socketPath())
+	resp, err := client.Get("/v1/grants", "")
+	resp = checkErr(resp, err)
+	fmt.Println(resp.BodyString())
 	return 0
 }
 

@@ -13,6 +13,7 @@ import (
 
 	"offense.dev/raid/core/cli"
 	"offense.dev/raid/core/server"
+	"offense.dev/raid/core/util"
 )
 
 func main() {
@@ -36,12 +37,13 @@ func main() {
 // runDaemon parses raidd flags and boots the server.
 func runDaemon(args []string) int {
 	var cfg server.Config
-	cfg.SocketPath = "/run/offense/raid/raid.sock"
+	socketSet := false
 	for i, a := range args {
 		switch a {
 		case "--socket":
 			if i + 1 < len(args) {
 				cfg.SocketPath = args[i+1]
+				socketSet = true
 			}
 		case "--db", "-d":
 			if i + 1 < len(args) {
@@ -50,6 +52,10 @@ func runDaemon(args []string) int {
 		case "--policy", "-p":
 			if i + 1 < len(args) {
 				cfg.PolicyFile = args[i+1]
+			}
+		case "--policy-preset":
+			if i + 1 < len(args) {
+				cfg.PolicyPreset = args[i+1]
 			}
 		case "--key":
 			if i + 1 < len(args) {
@@ -70,6 +76,8 @@ func runDaemon(args []string) int {
 				seed := parseApprover(args[i+1])
 				cfg.Approvers = append(cfg.Approvers, seed)
 			}
+		case "--solo":
+			cfg.Solo = true
 		case "--forbid-self-approval":
 			cfg.ForbidSelfApproval = true
 		case "--help", "-h":
@@ -77,17 +85,37 @@ func runDaemon(args []string) int {
 			return 0
 		}
 	}
-	if cfg.DBPath == "" {
-		cfg.DBPath = os.Getenv("RAID_DB")
-	}
-	if cfg.DBPath == "" {
-		cfg.DBPath = "/var/lib/offense/raid/raid.db"
-	}
-	if cfg.KeySeedFile == "" {
-		cfg.KeySeedFile = os.Getenv("RAID_KEY")
-	}
-	if cfg.KeySeedFile == "" {
-		cfg.KeySeedFile = "/var/lib/offense/raid/ed25519.seed"
+	if cfg.Solo {
+		// Unprivileged single-user defaults under the XDG state dir; the
+		// local user is auto-seeded as their own approver at boot.
+		if !socketSet {
+			cfg.SocketPath = util.StateFile("raid.sock")
+		}
+		if cfg.DBPath == "" {
+			cfg.DBPath = util.DefaultDB()
+		}
+		if cfg.KeySeedFile == "" {
+			cfg.KeySeedFile = util.DefaultKey()
+		}
+		if cfg.PolicyFile == "" && cfg.PolicyPreset == "" {
+			cfg.PolicyPreset = "solo-dev-safe"
+		}
+	} else {
+		if !socketSet {
+			cfg.SocketPath = util.SystemSocketDefault
+		}
+		if cfg.DBPath == "" {
+			cfg.DBPath = os.Getenv("RAID_DB")
+		}
+		if cfg.DBPath == "" {
+			cfg.DBPath = "/var/lib/offense/raid/raid.db"
+		}
+		if cfg.KeySeedFile == "" {
+			cfg.KeySeedFile = os.Getenv("RAID_KEY")
+		}
+		if cfg.KeySeedFile == "" {
+			cfg.KeySeedFile = "/var/lib/offense/raid/ed25519.seed"
+		}
 	}
 	if len(cfg.Approvers) == 0 {
 		// default local approver set from the environment
@@ -158,10 +186,12 @@ func printDaemonUsage() {
   --socket <path>      unix socket path (default /run/offense/raid/raid.sock)
   --db <path>          sqlite database path
   --policy <file>      policy bundle to activate at boot
+  --policy-preset <n>  activate an embedded preset (solo-dev-safe|review-only|ci-agent)
   --key <path>         ed25519 seed file (generated when absent)
   --tcp <addr>         optional tcp listener (remote mode)
   --uid <n>            allow unix socket peer uid (repeatable)
   --approver <subject:groups>  seed an approver (repeatable)
+  --solo               unprivileged single-user mode (XDG state dir, self-approval)
   --forbid-self-approval       reject approvers submitting their own request
 `)
 }

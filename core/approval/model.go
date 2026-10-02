@@ -59,6 +59,7 @@ type Approval struct {
 	matchedRuleIDs   []string
 	requiredGroups   []string
 	quorum           uint32
+	allowScope       string
 	state            State
 	version          uint64
 	createdAt        time.Time
@@ -81,6 +82,7 @@ func (a *Approval) PolicyBundleHash() []byte { return a.policyBundleHash }
 func (a *Approval) MatchedRuleIDs() []string { return a.matchedRuleIDs }
 func (a *Approval) RequiredGroups() []string { return a.requiredGroups }
 func (a *Approval) Quorum() uint32           { return a.quorum }
+func (a *Approval) AllowScope() string       { return a.allowScope }
 func (a *Approval) State() State             { return a.state }
 func (a *Approval) Version() uint64          { return a.version }
 func (a *Approval) CreatedAt() time.Time     { return a.createdAt }
@@ -139,6 +141,8 @@ func (a *Approval) WriteJSON(sb *strings.Builder) () {
 	sb.WriteByte(']')
 	sb.WriteString(`,"quorum":`)
 	sb.WriteString(strconv.FormatUint(uint64(a.quorum), 10))
+	sb.WriteString(`,"allow_scope":`)
+	canonical.WriteEscaped(sb, a.allowScope)
 	sb.WriteString(`,"state":`)
 	canonical.WriteEscaped(sb, string(a.state))
 	sb.WriteString(`,"version":`)

@@ -10,9 +10,22 @@ const ApiVersion = "offense.dev/raid/v1alpha1"
 // Kind is the accepted bundle kind.
 const Kind = "PolicyBundle"
 
-// AllowScopes is the closed set of approval scopes (MVP: exact_request).
+// AllowScopes is the closed set of approval scopes.
+//
+//   - exact_request: the receipt is bound to the exact request hash; a
+//     retry of a *different* request is rejected (default, strongest).
+//   - operation:     an approval also covers subsequent requests by the same
+//     principal+agent for the same operation+environment until it expires.
+//   - session:       an approval also covers subsequent requests by the same
+//     principal+agent+session until it expires.
+//
+// Scoped approvals exist for the single-user case (see `--solo`): they reduce
+// re-approval friction for repetitive low-risk operations. Grants are durable,
+// time-boxed, and audited; destructive tiers should stay exact_request.
 var AllowScopes = map[string]bool{
 	"exact_request": true,
+	"operation":     true,
+	"session":       true,
 }
 
 // BundleSchema is the top-level policy document.

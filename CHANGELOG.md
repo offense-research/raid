@@ -8,6 +8,53 @@ First engineering handoff build of the open-source MVP.
 
 ### Added
 
+- Solo mode for individual engineers (`raidd --solo`)
+  - Unprivileged single-user deployment under the XDG state dir
+    (`RAID_STATE_DIR`/`$XDG_STATE_HOME`), self-approval enabled, and the local
+    user auto-seeded as their own approver
+  - Defaults to the `solo-dev-safe` preset on boot
+  - `raid log` (and `GET /v1/journal`) merges decisions, approvals, and audit
+    events into one activity timeline
+  - `raid grants` (and `GET /v1/grants`) lists active scoped confirmations
+- Embedded policy presets and one-command onboarding
+  - `raid policy presets` lists `solo-dev-safe`, `review-only`, `ci-agent`
+  - `raid policy init --preset <name> [file]` writes one for editing
+  - `raidd --policy-preset <name>` boots straight from a preset
+  - `solo-dev-safe` denies catastrophic commands outright (`rm -rf /`, `~`,
+    `/etc`/`/usr` wipes, secret exfiltration) and confirms the rest
+- Scoped approvals (`allow_scope: operation | session`)
+  - A resolved scoped approval mints a durable, time-boxed grant covering the
+    same principal+agent+operation+environment (or session)
+  - Covered requests return `allow` with `reason_code: POLICY_GRANT_COVERED`;
+    the destructive tier stays on `exact_request`
+  - New `grants` table and expiry sweep; `decision` carries an optional
+    `grant_id`
+- Coding-agent normalization (`raidlib.analyze_bash`)
+  - Compound commands are segmented; `destructive`, `exfil`,
+    `protected_branch`, `branch`, `verb`, `target`, and `command` attributes are
+    emitted for policies to match precisely
+  - The starter Claude Code policy denies `destructive`/`exfil` outright and
+    never merely approves them
+- Coding-agent integration for Claude Code (`integrations/claude-code/`)
+  - `hook_gate.py`: a `PreToolUse` hook that maps a tool call to a normalized
+    Raid action and blocks on `deny` / `require_approval`, or passes on `allow`
+  - `mcp_server.py`: a stdio MCP server exposing `raid_check` and `raid_pending`
+  - `raidlib.py`: shared HTTP-over-`AF_UNIX` client + tool→action classifier
+  - `coding-agent.policy.yaml`: starter policy (reads allowed; prod writes,
+    deletes, force-push, and exec always require approval)
+  - `install.sh`: provisions/boots raidd, activates the policy, writes
+    `.claude/settings.json`
+- OpenRouter-backed natural-language policy authoring
+  - `raid policy from-language --statement "<permissions>" [--key] [--model] [--out] [--activate]`
+    drafts a policy bundle from plain-English permissions using an LLM over
+    OpenRouter (key via `OPENROUTER_API_KEY` or `--key`)
+  - `raid policy from-language --interactive` launches a Charm Bubble Tea +
+    Lipgloss TUI for key entry, plain-language drafting, YAML review, and
+    save/activate
+  - The draft is only trusted after it passes the deterministic load + compile
+    gate; it is emitted/activated only then (an LLM can never become authority)
+  - `core/nlpolicy` module with an injectable transport for offline tests and
+    a TUI renderer
 - Deterministic policy engine
   - Strict JSON request decoder (unknown fields, duplicate keys, malformed
     numbers, invalid UTF-8, size/depth limits rejected before evaluation)

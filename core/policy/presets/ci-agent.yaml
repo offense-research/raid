@@ -1,0 +1,111 @@
+apiVersion: offense.dev/raid/v1alpha1
+kind: PolicyBundle
+metadata:
+  name: ci-agent
+  revision: 1
+defaults:
+  effect: deny
+rules:
+  # --- Guardrail: deny outright -------------------------------------------
+  - id: deny-catastrophic
+    description: >-
+      Irreversible, system-wide, or credential-exfiltrating commands are
+      blocked outright.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.delete
+        - shell.execute
+        - shell.write
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.destructive) && resource.attributes.destructive == "true") ||
+      (has(resource.attributes.exfil) && resource.attributes.exfil == "true")
+    effect: deny
+
+  - id: allow-reads
+    description: Read-only file access, inspection, and fetches.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+    effect: allow
+
+  - id: allow-build-and-test
+    description: Build, test, and shell execution outside production.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.execute
+        - shell.write
+        - filesystem.write
+        - package.install
+    when: >-
+      resource.environment != "production"
+    effect: allow
+
+  - id: confirm-prod-writes
+    description: Writes, installs, and execution in production.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - filesystem.write
+        - package.install
+        - shell.execute
+    when: >-
+      resource.environment == "production"
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  - id: confirm-force-push
+    description: Rewriting history always needs a human.
+    match:
+      providers: [claude-code]
+      operations:
+        - git.force_push
+        - git.rewrite
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  - id: confirm-delete-db-cloud
+    description: Deletes, database mutation, and cloud mutation.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.delete
+        - db.mutate
+        - cloud.mutate
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: operation
+
+  - id: deny-listed
+    description: Operations that must never run.
+    match:
+      providers: [claude-code]
+      operations: [shell.denied]
+    effect: deny

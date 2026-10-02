@@ -31,6 +31,12 @@ type Config struct {
 	Approvers   []ApproverSeed
 	KeySeedFile string
 	ForbidSelfApproval bool
+	// Solo selects the unprivileged single-user posture: self-approval is
+	// permitted and the local user is seeded as their own approver.
+	Solo bool
+	// PolicyPreset activates an embedded preset bundle at boot (used when
+	// PolicyFile is unset).
+	PolicyPreset string
 	LogVerbose  bool
 }
 
@@ -73,6 +79,18 @@ func Boot(cfg Config) (*Daemon, error) {
 	}
 	hub := stream.NewHub()
 	apprStore := authn.NewApproverStore(st)
+	if cfg.Solo {
+		// A solo engineer is their own approver: separation of duty does not
+		// apply, and an unseeded approver table would make approvals unusable.
+		cfg.ForbidSelfApproval = false
+		if len(cfg.Approvers) == 0 {
+			cfg.Approvers = []ApproverSeed{{
+				SubjectID: currentUser(),
+				Groups:    []string{"maintainers", "admins"},
+				Enabled:   true,
+			}}
+		}
+	}
 	for _, seed := range cfg.Approvers {
 		for _, g := range seed.Groups {
 			if err := apprStore.Upsert(seed.SubjectID, g, seed.Enabled); err != nil {
@@ -94,8 +112,50 @@ func Boot(cfg Config) (*Daemon, error) {
 		if lerr := d.ActivateAttempt(cfg.PolicyFile); lerr != nil {
 			return nil, errors.New("raid: policy activation failed at boot: " + lerr.Error())
 		}
+	} else if cfg.PolicyPreset != "" {
+		if lerr := d.ActivatePreset(cfg.PolicyPreset); lerr != nil {
+			return nil, errors.New("raid: policy preset activation failed at boot: " + lerr.Error())
+		}
 	}
 	return d, nil
+}
+
+// ActivatePreset compiles and activates an embedded preset bundle, recording
+// the activation exactly as a file activation does.
+func (d *Daemon) ActivatePreset(name string) error {
+	bundle, cerr, lerr := policy.CompilePreset(name)
+	if lerr != nil {
+		return lerr
+	}
+	if cerr != nil {
+		return cerr
+	}
+	now := time.Now().UTC()
+	if _, err := d.Store.Exec(`INSERT INTO policy_bundles (id, name, revision, bundle_hash, active, activated_at_ns)
+		VALUES (?, ?, ?, ?, 1, ?) ON CONFLICT(id) DO UPDATE SET active = 1, bundle_hash = excluded.bundle_hash`,
+		bundle.ID(), bundle.Name(), bundle.Revision(), bundle.Hash(), now.UnixNano()); err != nil {
+		return err
+	}
+	if _, err := d.Store.Exec(`UPDATE policy_bundles SET active = 0 WHERE id != ?`, bundle.ID()); err != nil {
+		return err
+	}
+	if _, err := d.Store.Exec(`INSERT INTO policy_activations (id, bundle_id, actor, activated_at_ns)
+		VALUES (?, ?, ?, ?)`, util.NewID("act"), bundle.ID(), "preset:" + userName(), now.UnixNano()); err != nil {
+		return err
+	}
+	d.Engine.Activate(bundle)
+	return nil
+}
+
+// currentUser resolves the invoking user for solo approver seeding.
+func currentUser() string {
+	if v := os.Getenv("RAID_ADMIN"); v != "" {
+		return v
+	}
+	if v := os.Getenv("USER"); v != "" {
+		return v
+	}
+	return "local"
 }
 
 // Activate compiles and activates a policy file, recording the activation.

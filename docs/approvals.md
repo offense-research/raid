@@ -83,3 +83,30 @@ clients are dropped, never allowed to block resolution.
 
 The schema stores votes and quorum (multi-approver support lands without a
 migration); the open-source MVP exposes quorum 1 only.
+
+## Scopes and grants
+
+`allow_scope` decides how far an approval reaches:
+
+| scope | receipt binding | extra authorization |
+| --- | --- | --- |
+| `exact_request` | exact request hash | none |
+| `operation` | exact request hash | a durable grant for the same principal+agent+operation+environment |
+| `session` | exact request hash | a durable grant for the same principal+agent+session |
+
+On approval, a scoped approval mints a **grant** (table `grants`) that expires
+with the approval. A later request whose operation (or session) matches is
+authorized without a new approval: the decision is returned as
+`allow` with `reason_code: POLICY_GRANT_COVERED` and a `grant_id`, and is
+audited like any other decision. Grants are reaped by the expiry sweep.
+
+Grants exist for the single-user case (`raidd --solo`), where a human has no
+second reviewer and re-approving every similar command is pure friction. They
+are operation/session-scoped and time-boxed; the destructive tier should stay
+on `exact_request`. `raid grants` lists active grants (`GET /v1/grants`).
+
+## Journal
+
+`GET /v1/journal?limit=N` (and `raid log`) returns a merged, time-ordered
+activity log of decisions, approvals, and audit events — the "what did my
+agent do" view for an individual engineer.

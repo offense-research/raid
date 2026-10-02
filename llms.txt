@@ -12,7 +12,9 @@ Key invariants (see `docs/threat-model.md`):
 - Jev is escalation-only: final = max(base, semantic) under
   allow < require_approval < deny.
 - Approvals bind the SHA-256 canonical request hash; receipts are Ed25519
-  signed, single-use, at-most-once consume.
+  signed, single-use, at-most-once consume. Scoped approvals (`allow_scope:
+  operation|session`) additionally mint a durable, time-boxed grant; the
+  destructive tier stays `exact_request`.
 - Missing/invalid policy fails closed (deny). Jev failures escalate to
   require_approval minimum.
 - Untrusted text is sanitized before TUI rendering (no terminal control

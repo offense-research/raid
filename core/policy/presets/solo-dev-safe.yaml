@@ -1,0 +1,162 @@
+apiVersion: offense.dev/raid/v1alpha1
+kind: PolicyBundle
+metadata:
+  name: solo-dev-safe
+  revision: 1
+defaults:
+  effect: deny
+rules:
+  # --- Guardrail: deny outright, never merely approve -----------------------
+  # A solo engineer has no second reviewer. The highest-value protection is
+  # blocking the agent's irreversible actions before they happen; the agent is
+  # told why and reroutes. Nothing here is approvable.
+  - id: deny-catastrophic
+    description: >-
+      Irreversible, system-wide, credential-exfiltrating, or protected-branch
+      rewriting commands are blocked outright.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.delete
+        - shell.execute
+        - shell.write
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.destructive) && resource.attributes.destructive == "true") ||
+      (has(resource.attributes.exfil) && resource.attributes.exfil == "true") ||
+      (has(resource.attributes.protected_branch) && resource.attributes.protected_branch == "true" &&
+        (action.operation == "git.force_push" || action.operation == "git.rewrite"))
+    effect: deny
+
+  # --- Reads are always fine ----------------------------------------------
+  - id: allow-reads
+    description: Read-only file access and safe shell inspection.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+    effect: allow
+
+  # --- Normal development work --------------------------------------------
+  - id: allow-dev-writes
+    description: File edits and package installs outside production.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - filesystem.write
+        - package.install
+    when: >-
+      resource.environment != "production"
+    effect: allow
+
+  # Pushing your own feature branch is routine.
+  - id: allow-dev-push
+    description: Pushing a non-protected branch.
+    match:
+      providers: [claude-code]
+      operations: [git.push]
+    when: >-
+      resource.environment != "production" &&
+      (!has(resource.attributes.protected_branch) || resource.attributes.protected_branch != "true")
+    effect: allow
+
+  # --- One-keypress confirmations -----------------------------------------
+  # Scoped to the operation so a repetitive, low-risk action is not
+  # re-approved for every invocation; the destructive tiers stay exact.
+  - id: confirm-delete-db-cloud
+    description: Deletes, database mutation, and cloud mutation.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.delete
+        - db.mutate
+        - cloud.mutate
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: operation
+
+  - id: confirm-exec
+    description: Running services, containers, or privileged shell commands.
+    match:
+      providers: [claude-code]
+      operations:
+        - service.exec
+        - container.exec
+        - shell.execute
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: operation
+
+  - id: confirm-force-push
+    description: Force-pushing or rewriting history always needs a human.
+    match:
+      providers: [claude-code]
+      operations:
+        - git.force_push
+        - git.rewrite
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  - id: confirm-protected-push
+    description: Pushing to a protected branch needs a human.
+    match:
+      providers: [claude-code]
+      operations:
+        - git.push
+    when: >-
+      has(resource.attributes.protected_branch) &&
+      resource.attributes.protected_branch == "true"
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  - id: confirm-prod-writes
+    description: File writes or package installs in production.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - filesystem.write
+        - package.install
+    when: >-
+      resource.environment == "production"
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  # --- Never ---------------------------------------------------------------
+  - id: deny-listed
+    description: Operations that must never run.
+    match:
+      providers: [claude-code]
+      operations: [shell.denied]
+    effect: deny

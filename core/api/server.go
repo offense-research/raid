@@ -68,6 +68,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/policies/validate", s.handlePoliciesValidate)
 	mux.HandleFunc("/v1/policies/activate", s.handlePoliciesActivate)
 	mux.HandleFunc("/v1/keys", s.handleKeys)
+	mux.HandleFunc("/v1/journal", s.handleJournal)
+	mux.HandleFunc("/v1/grants", s.handleGrants)
 	return mux
 }
 
@@ -161,6 +163,21 @@ func (s *Server) handleDecisions(w http.ResponseWriter, r *http.Request) {
 			// Jev escalated an allow with no policy rule: use the
 			// fail-safe approval configuration (spec 7.6 outcome).
 			cfg = policy.DefaultApprovalConfig()
+		}
+		// A scoped approval (operation/session) authorizes later matching
+		// requests without a fresh approval. Exact-request never short-circuits.
+		if cfg.AllowScope() != "" && cfg.AllowScope() != "exact_request" {
+			if g, gerr := s.cfg.Approvals.FindGrant(
+				req.Principal().SubjectID(), req.Principal().AgentID(), req.Principal().SessionID(),
+				req.Action().Operation(), req.Resource().Environment(), d.PolicyBundleHash()); gerr == nil && g != nil {
+				d = d.WithGrantCoverage(g.ID())
+				if err := audit.WriteDecision(s.cfg.Store, d, now); err != nil {
+					s.writeJSON(w, http.StatusServiceUnavailable, errDoc(CodeUnavailable, "decision could not be persisted", true, s.reqID(r)))
+					return
+				}
+				s.writeJSON(w, http.StatusOK, d.WriteJSONString())
+				return
+			}
 		}
 		appr, cerr := s.cfg.Approvals.Create(d, req, cfg)
 		if cerr != nil {
@@ -529,6 +546,101 @@ func (s *Server) handlePoliciesValidate(w http.ResponseWriter, r *http.Request) 
 	sb.WriteString(`,"rules":`)
 	sb.WriteString(fmt.Sprintf("%d", len(compiled.Rules())))
 	sb.WriteByte('}')
+	s.writeJSON(w, http.StatusOK, sb.String())
+}
+
+// handleJournal returns a merged, time-ordered activity log of decisions,
+// approvals, and audit events: the "what did my agent do" view.
+func (s *Server) handleJournal(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.writeJSON(w, http.StatusMethodNotAllowed, errDoc(CodeInputInvalid, "method not allowed", false, s.reqID(r)))
+		return
+	}
+	limit := int64(50)
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, ok := parseUint(v); ok && n > 0 && n <= 1000 {
+			limit = int64(n)
+		}
+	}
+	rows, err := s.cfg.Store.Query(`
+		SELECT at_ns, kind, id, detail FROM (
+			SELECT created_at_ns AS at_ns, 'decision' AS kind, id AS id,
+			       effect || ' ' || reason_code AS detail FROM decisions
+			UNION ALL
+			SELECT created_at_ns, 'approval', id,
+			       operation || ' [' || environment || '] ' || state FROM approvals
+			UNION ALL
+			SELECT created_at_ns, 'audit', id, kind FROM audit_events
+		) ORDER BY at_ns DESC LIMIT ?`, limit)
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, errDoc(CodeInternal, "could not read journal", true, s.reqID(r)))
+		return
+	}
+	defer rows.Close()
+	var sb strings.Builder
+	sb.WriteString(`{"entries":[`)
+	first := true
+	for rows.Next() {
+		var atNs int64
+		var kind, id, detail string
+		if err := rows.Scan(&atNs, &kind, &id, &detail); err != nil {
+			s.writeJSON(w, http.StatusInternalServerError, errDoc(CodeInternal, "could not read journal", true, s.reqID(r)))
+			return
+		}
+		if !first {
+			sb.WriteByte(',')
+		}
+		first = false
+		sb.WriteString(`{"at":`)
+		canonical.WriteEscaped(&sb, time.Unix(0, atNs).UTC().Format(time.RFC3339))
+		sb.WriteString(`,"kind":`)
+		canonical.WriteEscaped(&sb, kind)
+		sb.WriteString(`,"id":`)
+		canonical.WriteEscaped(&sb, id)
+		sb.WriteString(`,"detail":`)
+		canonical.WriteEscaped(&sb, detail)
+		sb.WriteByte('}')
+	}
+	sb.WriteString(`]}`)
+	s.writeJSON(w, http.StatusOK, sb.String())
+}
+
+// handleGrants lists unexpired scoped grants.
+func (s *Server) handleGrants(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.writeJSON(w, http.StatusMethodNotAllowed, errDoc(CodeInputInvalid, "method not allowed", false, s.reqID(r)))
+		return
+	}
+	if s.cfg.Approvals == nil {
+		s.writeJSON(w, http.StatusOK, `[]`)
+		return
+	}
+	grants, err := s.cfg.Approvals.ListGrants()
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, errDoc(CodeInternal, "could not list grants", true, s.reqID(r)))
+		return
+	}
+	var sb strings.Builder
+	sb.WriteByte('[')
+	for i, g := range grants {
+		if i > 0 {
+			sb.WriteByte(',')
+		}
+		sb.WriteString(`{"id":`)
+		canonical.WriteEscaped(&sb, g.ID())
+		sb.WriteString(`,"approval_id":`)
+		canonical.WriteEscaped(&sb, g.ApprovalID())
+		sb.WriteString(`,"operation":`)
+		canonical.WriteEscaped(&sb, g.Operation())
+		sb.WriteString(`,"environment":`)
+		canonical.WriteEscaped(&sb, g.Environment())
+		sb.WriteString(`,"scope":`)
+		canonical.WriteEscaped(&sb, g.Scope())
+		sb.WriteString(`,"expires_at":`)
+		canonical.WriteEscaped(&sb, g.ExpiresAt().Format(time.RFC3339))
+		sb.WriteByte('}')
+	}
+	sb.WriteByte(']')
 	s.writeJSON(w, http.StatusOK, sb.String())
 }
 
