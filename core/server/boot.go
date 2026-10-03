@@ -37,7 +37,15 @@ type Config struct {
 	// PolicyPreset activates an embedded preset bundle at boot (used when
 	// PolicyFile is unset).
 	PolicyPreset string
-	LogVerbose  bool
+	// TCP hardening: bearer token, TLS/mTLS, and a rate limit on the TCP
+	// listener. The Unix socket is authenticated by peer UID.
+	TCPToken        string
+	TLSCertFile     string
+	TLSKeyFile      string
+	TLSClientCAFile string
+	RateLimitPerSec float64
+	RateLimitBurst  int
+	LogVerbose      bool
 }
 
 // ApproverSeed is an admin-seeded approver entry.
@@ -106,6 +114,12 @@ func Boot(cfg Config) (*Daemon, error) {
 	server := api.NewServer(api.Config{
 		Engine: engine, Approvals: svc, Store: st, Hub: hub, Key: key,
 		Approvers: apprStore, AllowUIDs: cfg.AllowUIDs, Evaluator: evaluator,
+		TCPToken:        cfg.TCPToken,
+		TLSCertFile:     cfg.TLSCertFile,
+		TLSKeyFile:      cfg.TLSKeyFile,
+		TLSClientCAFile: cfg.TLSClientCAFile,
+		RateLimitPerSec: cfg.RateLimitPerSec,
+		RateLimitBurst:  cfg.RateLimitBurst,
 	})
 	d := &Daemon{Cfg: cfg, Srv: server, Store: st, Engine: engine, svc: svc, Run: true}
 	if cfg.PolicyFile != "" {

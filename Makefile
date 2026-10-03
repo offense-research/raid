@@ -9,7 +9,7 @@ all:
 .PHONY: all test bench clean install
 
 test:
-	$(GO) test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./pkg/raidclient
+	$(GO) test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./core/cli ./pkg/raidclient
 
 bench:
 	$(GO) test -bench=Benchmark -benchmem -v ./core/bench

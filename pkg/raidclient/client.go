@@ -50,6 +50,11 @@ func (c *Client) Get(path string, approver string) (*Response, error) {
 	return c.request("GET", path, "", approver, nil)
 }
 
+// Delete sends a DELETE request.
+func (c *Client) Delete(path, approver string) (*Response, error) {
+	return c.request("DELETE", path, "", approver, nil)
+}
+
 func (c *Client) request(method, path, body, approver string, headers map[string]string) (*Response, error) {
 	raddr := &net.UnixAddr{Name: c.SocketPath, Net: "unix"}
 	conn, err := net.DialUnix("unix", nil, raddr)

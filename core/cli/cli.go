@@ -27,6 +27,8 @@ func Dispatch(args []string) int {
 		return cmdApproval(rest)
 	case "grants":
 		return cmdGrants(rest)
+	case "receipt":
+		return cmdReceipt(rest)
 	case "log":
 		return cmdLog(rest)
 	case "doctor":
@@ -46,7 +48,7 @@ func Dispatch(args []string) int {
 }
 
 func printUsage() {
-	fmt.Println(`usage: raid <command> [args]
+	fmt.Print(`usage: raid <command> [args]
 
 commands:
   policy validate|test|diff|activate|init <file>...
@@ -56,8 +58,10 @@ commands:
   policy from-language --interactive            # Charm TUI authoring
   decision eval --request <request.json>
   approval list|approve|deny|cancel
-  grants            (list active scoped grants)
-  log [--limit N]   (activity journal: decisions, approvals, audit)
+  grants [revoke <id>]   (list or revoke active scoped grants)
+  receipt get <id>       (receipt status and signed material)
+  receipt verify <id> | --receipt <file> [--request <file>] [--pubkey <hex>]
+  log [--limit N] [--kind decision|approval|audit]
   doctor
   approve           (interactive TUI; requires a TTY)
 `)

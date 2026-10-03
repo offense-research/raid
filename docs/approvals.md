@@ -81,8 +81,14 @@ clients are dropped, never allowed to block resolution.
 
 ## Quorum
 
-The schema stores votes and quorum (multi-approver support lands without a
-migration); the open-source MVP exposes quorum 1 only.
+A rule's `approval.quorum` (default 1) sets how many distinct approvers must
+approve before the request is authorized. Each approve records a vote
+(`approval_votes`, one per approver); the approval stays `pending` until
+`quorum` votes are recorded, then transitions to `approved` and issues the
+receipt in one transaction. A single **deny is a veto** and resolves
+immediately. Re-approving does not double-count an approver. Approver groups,
+the version predicate, and `--forbid-self-approval` all still apply to every
+vote.
 
 ## Scopes and grants
 
@@ -103,10 +109,18 @@ audited like any other decision. Grants are reaped by the expiry sweep.
 Grants exist for the single-user case (`raidd --solo`), where a human has no
 second reviewer and re-approving every similar command is pure friction. They
 are operation/session-scoped and time-boxed; the destructive tier should stay
-on `exact_request`. `raid grants` lists active grants (`GET /v1/grants`).
+on `exact_request`. `raid grants` lists active grants (`GET /v1/grants`) and
+`raid grants revoke <id>` ends one immediately (`DELETE /v1/grants/{id}`).
 
 ## Journal
 
-`GET /v1/journal?limit=N` (and `raid log`) returns a merged, time-ordered
-activity log of decisions, approvals, and audit events — the "what did my
-agent do" view for an individual engineer.
+`GET /v1/journal?limit=N[&kind=decision|approval|audit]` (and `raid log`) returns
+a merged, time-ordered activity log of decisions, approvals, and audit events —
+the "what did my agent do" view for an individual engineer.
+
+## Receipt status
+
+`GET /v1/receipts/{id}` returns a receipt's status (`issued`/`consumed`/
+`expired`) plus its `key_id`, `signature`, and `claims_bytes`, so a consumer can
+verify it independently with `raid receipt verify <id>` (or offline with
+`--receipt <file> --pubkey <hex>`) without trusting the daemon.

@@ -151,8 +151,11 @@ policy, boots `raidd`, and runs a three-case demo. Full drop-in agent skill at
 `skills/raid/SKILL.md`. Env knobs: `RAID_SOCKET`, `RAID_DB`, `RAID_KEY`,
 `RAID_POLICY`, `RAID_APPROVERS`, `RAID_UID`, `RAID_SESSION`,
 `RAID_STATE_DIR`, `TYPESAFE_API_KEY`, `RAID_ADMIN`. `raidd` flags mirror these
-(`--socket --db --policy --policy-preset --key --tcp --uid --approver --solo --forbid-self-approval`).
-Use `./raid doctor` to verify daemon readiness.
+(`--socket --db --policy --policy-preset --key --tcp --tcp-token --tcp-cert
+--tcp-key --tcp-client-ca --rate-limit --rate-burst --uid --approver --solo
+--forbid-self-approval`). Use `./raid doctor` to verify daemon readiness.
+`--tcp` is a network surface: it needs `--tcp-token` and/or TLS, and the Unix
+socket (peer-UID authenticated) is unaffected.
 
 ### Solo posture, presets, scopes, journal
 
@@ -169,6 +172,16 @@ Use `./raid doctor` to verify daemon readiness.
   `require_approval` into `allow`/`POLICY_GRANT_COVERED` when a grant covers it
   (`core/approval/grants.go`, `handleDecisions`). Keep destructive tiers on
   `exact_request`.
+- **Quorum** is implemented (`resolveApprove` in `core/approval/service.go`):
+  each approve records a vote in `approval_votes`, the approval stays `pending`
+  until `quorum` votes, then transitions and issues the receipt; a deny is an
+  immediate veto.
+- **Contract guard:** `core/api/openapi_test.go` asserts the OpenAPI paths and
+  `api.Server.Routes()` agree in both directions. Add a route and its spec
+  entry together or CI fails.
+- **Receipts** are independently verifiable: `GET /v1/receipts/{id}` exposes the
+  signed material and `raid receipt verify` checks the signature + request
+  binding without trusting the daemon.
 - **`raid log` / `GET /v1/journal`** is the merged activity timeline. Wire/API
   additions: endpoints `/v1/journal` and `/v1/grants`; the `decisions` JSON may
   now carry `grant_id`, and the `approvals` JSON now carries `allow_scope`.

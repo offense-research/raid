@@ -146,18 +146,27 @@ func cmdDoctor(args []string) int {
 func cmdLog(args []string) int {
 	limit := "50"
 	asJSON := false
+	kind := ""
 	for i, a := range args {
 		switch a {
 		case "--limit", "-n":
 			if i+1 < len(args) {
 				limit = args[i+1]
 			}
+		case "--kind", "-k":
+			if i+1 < len(args) {
+				kind = args[i+1]
+			}
 		case "--json":
 			asJSON = true
 		}
 	}
+	path := "/v1/journal?limit=" + limit
+	if kind != "" {
+		path += "&kind=" + kind
+	}
 	client := raidclient.NewClient(socketPath())
-	resp, err := client.Get("/v1/journal?limit="+limit, "")
+	resp, err := client.Get(path, "")
 	resp = checkErr(resp, err)
 	if asJSON {
 		fmt.Println(resp.BodyString())
@@ -207,9 +216,22 @@ func kindStr(v canonical.Value) string {
 	return ""
 }
 
-// cmdGrants lists active scoped grants.
+// cmdGrants lists active scoped grants, or revokes one.
 func cmdGrants(args []string) int {
-	_ = args
+	if len(args) >= 1 && args[0] == "revoke" {
+		if len(args) < 2 {
+			log.Printf("raid: grants revoke <id>")
+			return 2
+		}
+		client := raidclient.NewClient(socketPath())
+		resp, err := client.Delete("/v1/grants/"+args[1], "")
+		resp = checkErr(resp, err)
+		fmt.Println(resp.BodyString())
+		if resp.Status >= 400 {
+			return 1
+		}
+		return 0
+	}
 	client := raidclient.NewClient(socketPath())
 	resp, err := client.Get("/v1/grants", "")
 	resp = checkErr(resp, err)

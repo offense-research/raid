@@ -5,5 +5,7 @@
 *.seed
 *.sock
 /obj/
+__pycache__/
+*.pyc
 # Internal strategy, not for the public (open-source) repo.
 /docs/market-and-gtm.md

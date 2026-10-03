@@ -128,6 +128,7 @@ type sqlApprovalRow struct {
 	requiredGroups     string
 	quorum             uint32
 	allowScope         string
+	voteCount          int64
 	state              string
 	version            uint64
 	createdAtNs        int64
@@ -140,7 +141,9 @@ func columnList() string {
 	return `id, decision_id, request_hash, principal_id, agent_id, session_id,
 	       operation, resource_type, resource_id, environment,
 	       arguments_summary, policy_bundle_hash, matched_rule_ids,
-	       required_groups, quorum, allow_scope, state, version, created_at_ns, expires_at_ns, resolved_at_ns`
+	       required_groups, quorum, allow_scope, state, version, created_at_ns, expires_at_ns, resolved_at_ns,
+	       (SELECT COUNT(*) FROM approval_votes v
+	        WHERE v.approval_id = approvals.id AND v.decision = 'approve')`
 }
 
 func (row *sqlApprovalRow) toApproval() *Approval {
@@ -160,6 +163,7 @@ func (row *sqlApprovalRow) toApproval() *Approval {
 		requiredGroups:   splitComma(row.requiredGroups),
 		quorum:           row.quorum,
 		allowScope:       scopeOrDefault(row.allowScope),
+		votes:            row.voteCount,
 		state:            State(row.state),
 		version:          row.version,
 		createdAt:        time.Unix(0, row.createdAtNs).UTC(),

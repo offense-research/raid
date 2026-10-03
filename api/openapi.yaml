@@ -93,6 +93,15 @@ paths:
   /v1/receipts/{id}/consume:
     post:
       summary: Atomically consume a signed receipt (at-most-once)
+  /v1/receipts/{id}:
+    get:
+      summary: Receipt status and signed material (for independent verification)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Receipt status (issued|consumed|expired) plus key_id, signature, claims_bytes
+        '404': {description: Not found}
   /v1/approvals/stream:
     get:
       summary: SSE event stream (approval.created/updated/expired/consumed)
@@ -115,6 +124,7 @@ paths:
       summary: Merged activity timeline (decisions, approvals, audit events)
       parameters:
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 1000, default: 50}}
+        - {name: kind, in: query, schema: {enum: [decision, approval, audit]}}
       responses:
         '200':
           description: Time-ordered journal entries, newest first
@@ -134,6 +144,14 @@ paths:
           content:
             application/json:
               schema: {type: array, items: {$ref: '#/components/schemas/Grant'}}
+  /v1/grants/{id}:
+    delete:
+      summary: Revoke a scoped grant (ends its coverage immediately)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: '{"revoked":true}'}
+        '404': {description: Not found}
 components:
   securitySchemes:
     approverHeader:
@@ -244,6 +262,7 @@ components:
         matched_rule_ids: {type: array, items: {type: string}}
         required_groups: {type: array, items: {type: string}}
         quorum: {type: integer}
+        votes: {type: integer}
         allow_scope: {enum: [exact_request, operation, session]}
         state: {enum: [pending, approved, denied, expired, cancelled, consumed, superseded]}
         version: {type: integer, format: uint64}

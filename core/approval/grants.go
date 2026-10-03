@@ -143,3 +143,15 @@ func (s *Service) sweepExpiredGrants(now time.Time) error {
 	_, err := s.store.Exec(`DELETE FROM grants WHERE expires_at_ns <= ?`, now.UnixNano())
 	return err
 }
+
+// RevokeGrant deletes a scoped grant, ending its coverage immediately.
+func (s *Service) RevokeGrant(id string) error {
+	res, err := s.store.Exec(`DELETE FROM grants WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return ErrGrantNotFound
+	}
+	return nil
+}

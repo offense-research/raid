@@ -8,6 +8,28 @@ First engineering handoff build of the open-source MVP.
 
 ### Added
 
+- TCP listener hardening for remote/team deployments
+  - `--tcp-token` (or `RAID_TCP_TOKEN`) requires a bearer token (also accepted
+    via `X-Raid-Token`, constant-time compared)
+  - `--tcp-cert`/`--tcp-key` serve TLS; `--tcp-client-ca` adds mutual TLS
+  - `--rate-limit`/`--rate-burst` apply a global token bucket
+- Multi-approver quorum
+  - `approval.quorum > 1` records a vote per approver (`approval_votes`); the
+    approval stays pending until quorum is reached, then issues the receipt
+  - a single deny is a veto; re-approving does not double-count; the approval
+    view exposes `votes`
+- Scoped-approval and audit UX
+  - `raid grants revoke <id>` / `DELETE /v1/grants/{id}` ends a grant
+  - `raid log --kind decision|approval|audit` filters the journal
+    (`GET /v1/journal?kind=`)
+  - the TUI toggles between approvals and grants (`t`), showing grants and
+    revoking with `x`
+- Receipt verification
+  - `GET /v1/receipts/{id}` returns status plus `key_id`/`signature`/`claims_bytes`
+  - `raid receipt get <id>` and `raid receipt verify <id> | --receipt <file>
+    [--request <file>] [--pubkey <hex>]` check the signature and request binding
+    independently of the daemon
+- OpenAPI/router drift test so the contract cannot silently lag the handlers
 - Real outbound HTTPS transports for `core/jev` and `core/nlpolicy`
   - The default `netClient` now performs a real HTTPS request (bounded deadline
     and response size) instead of a stub that always failed closed, so the

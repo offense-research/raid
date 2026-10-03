@@ -17,6 +17,8 @@ import (
 // Model is the TUI state (spec 9.7).
 type Model struct {
 	approvals []ApprovalView
+	grants    []GrantView
+	mode      string // "" / "approvals" or "grants"
 	cursor    int
 	selected  map[string]bool
 	filter    string
@@ -46,17 +48,34 @@ type ApprovalView struct {
 	ExpiresAt   time.Time
 }
 
+// GrantView is a safe, rendered-shape grant.
+type GrantView struct {
+	ID          string
+	ApprovalID  string
+	Operation   string
+	Environment string
+	Scope       string
+	ExpiresAt   time.Time
+}
+
 // --- messages (all implement the empty uv.Event marker) ---
 
 type FetchListMsg struct {
-	JSON string
-	Err  string
+	JSON       string
+	GrantsJSON string
+	Err        string
 }
 
 type ApproveDoneMsg struct {
 	ApprovalID string
 	OK         bool
 	Body       string
+}
+
+type RevokeDoneMsg struct {
+	GrantID string
+	OK      bool
+	Body    string
 }
 
 type FilterMsg struct{}
@@ -69,7 +88,21 @@ func refreshCmd(client *raidclient.Client) tea.Cmd {
 		if err != nil {
 			return FetchListMsg{Err: err.Error()}
 		}
-		return FetchListMsg{JSON: resp.BodyString()}
+		msg := FetchListMsg{JSON: resp.BodyString()}
+		if gresp, gerr := client.Get("/v1/grants", ""); gerr == nil {
+			msg.GrantsJSON = gresp.BodyString()
+		}
+		return msg
+	})
+}
+
+func revokeCmd(client *raidclient.Client, id string) tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		resp, err := client.Delete("/v1/grants/"+id, os.Getenv("RAID_APPROVER"))
+		if err != nil {
+			return RevokeDoneMsg{GrantID: id, OK: false, Body: err.Error()}
+		}
+		return RevokeDoneMsg{GrantID: id, OK: resp.Status == 200, Body: resp.BodyString()}
 	})
 }
 
@@ -140,6 +173,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a := m.approvals[max(0, m.cursor)]
 				return m, denyCmd(newClient(), a.ID, a.Version)
 			}
+		case "t", "tab":
+			if m.mode == "grants" {
+				m.mode = "approvals"
+			} else {
+				m.mode = "grants"
+			}
+			m.cursor = 0
+		case "x":
+			if m.mode == "grants" && len(m.grants) > 0 {
+				g := m.grants[max(0, m.cursor)]
+				return m, revokeCmd(newClient(), g.ID)
+			}
 		case "/":
 			m.filtering = true
 		case "escape", "esc":
@@ -160,6 +205,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.approvals = parseApprovals(msg.JSON)
+		m.grants = parseGrants(msg.GrantsJSON)
 		m.connected = true
 		m.err = ""
 		return m, nil
@@ -168,6 +214,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = "approved " + msg.ApprovalID
 		} else {
 			m.err = "approve failed: " + msg.Body
+		}
+		return m, refreshCmd(newClient())
+	case RevokeDoneMsg:
+		if msg.OK {
+			m.err = "revoked " + msg.GrantID
+		} else {
+			m.err = "revoke failed: " + msg.Body
 		}
 		return m, refreshCmd(newClient())
 	case FilterMsg:
@@ -187,7 +240,11 @@ func (m Model) View() tea.View {
 	}
 	lines := []string{}
 	lines = append(lines, headerLine(m, width))
-	lines = append(lines, pendingList(m, width))
+	if m.mode == "grants" {
+		lines = append(lines, grantsList(m, width))
+	} else {
+		lines = append(lines, pendingList(m, width))
+	}
 	lines = append(lines, requestDetail(m, width))
 	lines = append(lines, footerLine(m, width))
 	// honor height by trimming
@@ -206,6 +263,11 @@ func ZeroTime() time.Time { return time.Time{} }
 // AddView appends an approval view (used by tests to plant fixtures).
 func (m *Model) AddView(v ApprovalView) () {
 	m.approvals = append(m.approvals, v)
+}
+
+// AddGrantView appends a grant view (used by tests to plant fixtures).
+func (m *Model) AddGrantView(v GrantView) {
+	m.grants = append(m.grants, v)
 }
 
 // Run launches the TUI. It fails loudly when there is no TTY (spec 9.9).

@@ -35,7 +35,7 @@ Each rule has static `match` filters and a CEL `when` condition:
   effect: require_approval
   approval:
     approver_groups: [maintainers]
-    quorum: 1            # MVP supports quorum 1 only
+    quorum: 1            # distinct approvers required (>= 1)
     ttl: 5m              # 30s..30m
     allow_scope: exact_request   # exact_request | operation | session
 ```

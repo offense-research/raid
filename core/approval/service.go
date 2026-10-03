@@ -33,6 +33,7 @@ var (
 	ErrTerminal        = errors.New("raid: approval already resolved")
 	ErrAlreadyConsumed = errors.New("raid: receipt already consumed")
 	ErrReceiptIssue    = errors.New("raid: receipt issuance failed")
+	ErrGrantNotFound   = errors.New("raid: grant not found")
 )
 
 // Approver is the authenticated acting human.
@@ -137,12 +138,14 @@ func (s *Service) Resolve(approvalID string, approve bool, approver Approver, ex
 		return nil, nil, nil, ErrSelfApproval
 	}
 
-	nextState := StateDenied
-	if approve {
-		nextState = StateApproved
+	if !approve {
+		return s.resolveTerminal(appr, StateDenied, expectedVersion, now)
 	}
-	var receipt *signing.SignedReceipt
-	var claims *signing.Claims
+	return s.resolveApprove(appr, approver, expectedVersion, now)
+}
+
+// resolveTerminal flips a pending approval to a terminal state (deny).
+func (s *Service) resolveTerminal(appr *Approval, nextState State, expectedVersion uint64, now time.Time) (*Approval, *signing.SignedReceipt, *signing.Claims, error) {
 	tx, err := s.store.Begin()
 	if err != nil {
 		return nil, nil, nil, err
@@ -152,52 +155,104 @@ func (s *Service) Resolve(approvalID string, approve bool, approver Approver, ex
 	res, err := tx.Exec(`UPDATE approvals
 		SET state = ?, version = version + 1, resolved_at_ns = ?
 		WHERE id = ? AND state = 'pending' AND version = ? AND expires_at_ns > ?`,
-		nextState, now.UnixNano(), approvalID, expectedVersion, now.UnixNano())
+		nextState, now.UnixNano(), appr.ID(), expectedVersion, now.UnixNano())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	if n != 1 {
-		// re-read to distinguish conflict from expiry
+	if n, _ := res.RowsAffected(); n != 1 {
 		return nil, nil, nil, ErrVersionConflict
 	}
-	if err := auditTx(tx, "approval."+string(nextState), approvalID, "", now); err != nil {
+	if err := auditTx(tx, "approval."+string(nextState), appr.ID(), "", now); err != nil {
 		return nil, nil, nil, err
 	}
-	if approve {
-		claims = &signing.Claims{
-			Version: 1,
-			ReceiptID: util.NewID("rcp"),
-			ApprovalID: appr.ID(),
-			DecisionID: appr.DecisionID(),
-			RequestHash: appr.RequestHash(),
-			PolicyBundleHash: appr.PolicyBundleHash(),
-			Effect: "allow",
-			IssuedAt: now.Unix(),
-			ExpiresAt: now.Add(signing.ReceiptTTL).Unix(),
-			Nonce: signing.NewNonce(),
-		}
-		receipt = signing.Sign(claims, s.key)
-		if err := insertReceiptTx(tx, claims, receipt, now); err != nil {
+	if err := tx.Commit(); err != nil {
+		return nil, nil, nil, err
+	}
+	out := appr.WithState(nextState, now)
+	s.hub.Publish(stream.Event{Kind: "approval." + string(nextState), ApprovalID: out.ID(), At: now})
+	return out, nil, nil, nil
+}
+
+// resolveApprove records the approver's vote and, once quorum is reached,
+// transitions the approval to approved and issues the signed receipt. Until
+// quorum is reached the approval stays pending and no receipt is issued.
+func (s *Service) resolveApprove(appr *Approval, approver Approver, expectedVersion uint64, now time.Time) (*Approval, *signing.SignedReceipt, *signing.Claims, error) {
+	tx, err := s.store.Begin()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer tx.Rollback()
+	// One vote per approver (idempotent): re-approving is a no-op.
+	if _, err := tx.Exec(`INSERT INTO approval_votes (id, approval_id, approver_id, decision, created_at_ns)
+		VALUES (?, ?, ?, 'approve', ?)
+		ON CONFLICT(approval_id, approver_id) DO NOTHING`,
+		util.NewID("vote"), appr.ID(), approver.SubjectID, now.UnixNano()); err != nil {
+		return nil, nil, nil, err
+	}
+	var votes int64
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM approval_votes
+		WHERE approval_id = ? AND decision = 'approve'`, appr.ID()).Scan(&votes); err != nil {
+		return nil, nil, nil, err
+	}
+	quorum := int64(appr.Quorum())
+	if quorum < 1 {
+		quorum = 1
+	}
+	if votes < quorum {
+		if err := auditTx(tx, "approval.vote", appr.ID(), approver.SubjectID, now); err != nil {
 			return nil, nil, nil, err
 		}
-		// A scoped approval also mints a durable grant covering similar,
-		// lower-risk requests until the approval expires.
-		if scopeOrDefault(appr.AllowScope()) != "exact_request" {
-			if err := insertGrantTx(tx, newGrant(appr, now)); err != nil {
-				return nil, nil, nil, err
-			}
+		if err := tx.Commit(); err != nil {
+			return nil, nil, nil, err
+		}
+		s.hub.Publish(stream.Event{Kind: "approval.voted", ApprovalID: appr.ID(), At: now})
+		return appr.WithVotes(votes), nil, nil, nil
+	}
+
+	// Quorum reached: transition to approved and issue the receipt in the
+	// same transaction.
+	res, err := tx.Exec(`UPDATE approvals
+		SET state = 'approved', version = version + 1, resolved_at_ns = ?
+		WHERE id = ? AND state = 'pending' AND version = ? AND expires_at_ns > ?`,
+		now.UnixNano(), appr.ID(), expectedVersion, now.UnixNano())
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		return nil, nil, nil, ErrVersionConflict
+	}
+	if err := auditTx(tx, "approval.approved", appr.ID(), "", now); err != nil {
+		return nil, nil, nil, err
+	}
+	claims := &signing.Claims{
+		Version:          1,
+		ReceiptID:        util.NewID("rcp"),
+		ApprovalID:       appr.ID(),
+		DecisionID:       appr.DecisionID(),
+		RequestHash:      appr.RequestHash(),
+		PolicyBundleHash: appr.PolicyBundleHash(),
+		Effect:           "allow",
+		IssuedAt:         now.Unix(),
+		ExpiresAt:        now.Add(signing.ReceiptTTL).Unix(),
+		Nonce:            signing.NewNonce(),
+	}
+	receipt := signing.Sign(claims, s.key)
+	if err := insertReceiptTx(tx, claims, receipt, now); err != nil {
+		return nil, nil, nil, err
+	}
+	// A scoped approval also mints a durable grant covering similar,
+	// lower-risk requests until the approval expires.
+	if scopeOrDefault(appr.AllowScope()) != "exact_request" {
+		if err := insertGrantTx(tx, newGrant(appr, now)); err != nil {
+			return nil, nil, nil, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, nil, nil, err
 	}
-	appr = appr.WithState(nextState, now)
-	s.hub.Publish(stream.Event{Kind: "approval." + string(nextState), ApprovalID: appr.ID(), At: now})
-	return appr, receipt, claims, nil
+	out := appr.WithState(StateApproved, now).WithVotes(votes)
+	s.hub.Publish(stream.Event{Kind: "approval.approved", ApprovalID: out.ID(), At: now})
+	return out, receipt, claims, nil
 }
 
 // Consume atomically marks a receipt consumed. At-most-once semantics.
@@ -286,7 +341,7 @@ func (s *Service) Get(id string) (*Approval, error) {
 			&row.operation, &row.resourceType, &row.resourceID, &row.environment,
 			&row.argumentsSummary, &row.policyBundleHash, &row.matchedRuleIDs,
 			&row.requiredGroups, &row.quorum, &row.allowScope, &row.state, &row.version,
-			&row.createdAtNs, &row.expiresAtNs, &resolved)
+			&row.createdAtNs, &row.expiresAtNs, &resolved, &row.voteCount)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}
@@ -316,7 +371,7 @@ func (s *Service) ListPending() ([]*Approval, error) {
 			&row.operation, &row.resourceType, &row.resourceID, &row.environment,
 			&row.argumentsSummary, &row.policyBundleHash, &row.matchedRuleIDs,
 			&row.requiredGroups, &row.quorum, &row.allowScope, &row.state, &row.version,
-			&row.createdAtNs, &row.expiresAtNs, &resolved); err != nil {
+			&row.createdAtNs, &row.expiresAtNs, &resolved, &row.voteCount); err != nil {
 			return nil, err
 		}
 		row.resolvedAtNs = resolved.Int64

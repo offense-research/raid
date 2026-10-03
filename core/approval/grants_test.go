@@ -153,3 +153,57 @@ func TestExactRequestMintsNoGrant(t *testing.T) {
 		t.Errorf("exact_request must mint no grants, got %d", len(grants))
 	}
 }
+
+// Revoking a grant ends its coverage immediately.
+func TestRevokeGrant(t *testing.T) {
+	st, svc, d, req := scopedSetup(t)
+	defer st.Close()
+	appr, _ := svc.Create(d, req, d.ApprovalConfig())
+	if _, _, _, err := svc.Resolve(appr.ID(), true, maintainer, appr.Version()); err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	g, err := svc.FindGrant("dev", "claude-code", "ses_1", "shell.execute", "development", d.PolicyBundleHash())
+	if err != nil || g == nil {
+		t.Fatalf("grant expected (g=%v err=%v)", g, err)
+	}
+	if err := svc.RevokeGrant(g.ID()); err != nil {
+		t.Fatalf("revoke: %v", err)
+	}
+	if g2, _ := svc.FindGrant("dev", "claude-code", "ses_1", "shell.execute", "development", d.PolicyBundleHash()); g2 != nil {
+		t.Errorf("a revoked grant must not cover requests")
+	}
+	if err := svc.RevokeGrant(g.ID()); err != approval.ErrGrantNotFound {
+		t.Errorf("revoking again: got %v want ErrGrantNotFound", err)
+	}
+}
+
+// A receipt is retrievable with its signed material and consumption state.
+func TestReceiptStatus(t *testing.T) {
+	st, svc, d, req := scopedSetup(t)
+	defer st.Close()
+	appr, _ := svc.Create(d, req, d.ApprovalConfig())
+	_, rec, claims, err := svc.Resolve(appr.ID(), true, maintainer, appr.Version())
+	if err != nil || rec == nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	got, err := svc.GetReceipt(claims.ReceiptID)
+	if err != nil {
+		t.Fatalf("get receipt: %v", err)
+	}
+	if got.Consumed() {
+		t.Errorf("receipt should not be consumed yet")
+	}
+	if len(got.Signature()) == 0 || len(got.ClaimsBytes()) == 0 || got.KeyID() == "" {
+		t.Errorf("receipt is missing signed material")
+	}
+	if err := svc.Consume(claims.ReceiptID, "test"); err != nil {
+		t.Fatalf("consume: %v", err)
+	}
+	got2, err := svc.GetReceipt(claims.ReceiptID)
+	if err != nil {
+		t.Fatalf("get receipt 2: %v", err)
+	}
+	if !got2.Consumed() || got2.ConsumedAt() == nil {
+		t.Errorf("receipt should be consumed")
+	}
+}

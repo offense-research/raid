@@ -104,6 +104,21 @@ export RAID_SOCKET="${XDG_STATE_HOME:-$HOME/.local/state}/offense/raid/raid.sock
   mints a time-boxed grant instead of re-approving every invocation. Keep the
   destructive tier on `exact_request`.
 
+## 3c. Gate a coding agent
+
+With a daemon running, wire an agent's tool calls through Raid (adapters share
+`integrations/lib/raidlib.py`):
+
+- Claude Code: `cd integrations/claude-code && RAID_ENV=development ./install.sh`
+  (writes a `PreToolUse` hook + MCP server into `.claude/settings.json`).
+- Cursor: copy `integrations/cursor/hooks.example.json` to `~/.cursor/hooks.json`
+  and point the command paths at the checkout.
+
+`require_approval` cannot block a hook while a human decides, so the hook
+declines the call and the human approves out-of-band
+(`raid approval approve <id> --expected-version 0`), then the agent retries; the
+receipt is bound to the exact request, so a different retry is rejected.
+
 ## 4. Readiness and operation
 
 - Check: `raid doctor` → `raidd: reachable` + active bundle JSON.
@@ -119,9 +134,13 @@ export RAID_SOCKET="${XDG_STATE_HOME:-$HOME/.local/state}/offense/raid/raid.sock
 - Endpoints (all JSON, unix socket): `POST /v1/decisions`,
   `GET /v1/decisions/{id}/wait`, `GET /v1/approvals`,
   `POST /v1/approvals/{id}/approve|deny|cancel`,
-  `POST /v1/receipts/{id}/consume`, `GET /v1/approvals/stream` (SSE),
+  `GET /v1/receipts/{id}`, `POST /v1/receipts/{id}/consume`,
+  `GET /v1/approvals/stream` (SSE),
   `GET /v1/policies/active`, `POST /v1/policies/validate|activate`,
-  `GET /v1/keys`, `GET /v1/journal`, `GET /v1/grants`.
+  `GET /v1/keys`, `GET /v1/journal`, `GET /v1/grants`, `DELETE /v1/grants/{id}`.
+- Quorum: `approval.quorum > 1` records a vote per approver and stays `pending`
+  until enough approve; one deny is a veto. Verify a receipt independently with
+  `raid receipt verify <id>`.
 
 ## 5. Verification
 
@@ -160,8 +179,10 @@ Do not report the build alone as provisioning.
   the canonical request hash — an altered request fails verification.
 - Do not create secrets, or edit the seed, DB, or policy to "make the demo
   pass". Raid fails closed; a missing bundle denies.
-- Do not run the TCP listener (`--tcp`) for remote use; mTLS remote mode is
-  not implemented in this build.
+- Do not expose the TCP listener (`--tcp`) without `--tcp-token` and/or TLS:
+  it is a network surface, unlike the peer-UID-authenticated Unix socket. For
+  remote use set `--tcp-token` (or `RAID_TCP_TOKEN`), and prefer `--tcp-cert`/
+  `--tcp-key` with `--tcp-client-ca` (mTLS); add `--rate-limit`/`--rate-burst`.
 - Verify exact behavior against `docs/` in the repository (threat model,
   policy language, approvals, Jev, performance) before claiming capabilities
   beyond what the demo shows.

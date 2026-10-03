@@ -6,6 +6,8 @@
 package api
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -13,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -41,6 +44,17 @@ type Config struct {
 	MaxBody    int64
 	// Evaluator is the optional semantic evaluator (nil disables Jev).
 	Evaluator  jev.SemanticEvaluator
+	// TCPToken, when set, is required as a bearer token on the TCP listener.
+	// The Unix socket is authenticated by peer UID and ignores it.
+	TCPToken string
+	// TLSCertFile/TLSKeyFile enable TLS on the TCP listener when both are set.
+	TLSCertFile string
+	TLSKeyFile  string
+	// TLSClientCAFile enables mutual TLS (verify client certificates).
+	TLSClientCAFile string
+	// RateLimitPerSec/RateLimitBurst bound the TCP listener (0 disables).
+	RateLimitPerSec float64
+	RateLimitBurst  int
 }
 
 // Server serves the Raid API.
@@ -59,18 +73,39 @@ func NewServer(cfg Config) *Server {
 // Handler returns the routed HTTP handler.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/decisions", s.handleDecisions)
-	mux.HandleFunc("/v1/decisions/", s.handleDecisionSub)
-	mux.HandleFunc("/v1/approvals", s.handleApprovals)
-	mux.HandleFunc("/v1/approvals/", s.handleApprovalSub)
-	mux.HandleFunc("/v1/receipts/", s.handleReceiptSub)
-	mux.HandleFunc("/v1/policies/active", s.handlePoliciesActive)
-	mux.HandleFunc("/v1/policies/validate", s.handlePoliciesValidate)
-	mux.HandleFunc("/v1/policies/activate", s.handlePoliciesActivate)
-	mux.HandleFunc("/v1/keys", s.handleKeys)
-	mux.HandleFunc("/v1/journal", s.handleJournal)
-	mux.HandleFunc("/v1/grants", s.handleGrants)
+	for pattern, h := range s.routes() {
+		mux.HandleFunc(pattern, h)
+	}
 	return mux
+}
+
+// routes is the single source of truth for the registered API patterns. A
+// contract test asserts them against api/openapi.yaml.
+func (s *Server) routes() map[string]http.HandlerFunc {
+	return map[string]http.HandlerFunc{
+		"/v1/decisions":         s.handleDecisions,
+		"/v1/decisions/":        s.handleDecisionSub,
+		"/v1/approvals":         s.handleApprovals,
+		"/v1/approvals/":        s.handleApprovalSub,
+		"/v1/receipts/":         s.handleReceiptSub,
+		"/v1/policies/active":   s.handlePoliciesActive,
+		"/v1/policies/validate": s.handlePoliciesValidate,
+		"/v1/policies/activate": s.handlePoliciesActivate,
+		"/v1/keys":              s.handleKeys,
+		"/v1/journal":           s.handleJournal,
+		"/v1/grants":            s.handleGrants,
+		"/v1/grants/":           s.handleGrantSub,
+	}
+}
+
+// Routes returns the registered route patterns, sorted (for contract tests).
+func (s *Server) Routes() []string {
+	patterns := make([]string, 0, len(s.routes()))
+	for p := range s.routes() {
+		patterns = append(patterns, p)
+	}
+	sort.Strings(patterns)
+	return patterns
 }
 
 // ServeUnix serves on a Unix socket, validating peer UIDs.
@@ -91,13 +126,59 @@ func (s *Server) ServeUnix(path string) error {
 }
 
 // ServeTCP serves on a TCP address (remote self-hosted mode).
+//
+// Unlike the Unix socket (which authenticates callers by peer UID), TCP is a
+// network surface: the handler requires a bearer token when one is configured,
+// applies a rate limit, and serves over TLS when a certificate is set (with
+// optional client-certificate (mTLS) verification).
 func (s *Server) ServeTCP(addr string) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
-	httpSrv := &http.Server{Handler: s.Handler()}
-	return httpSrv.Serve(ln)
+	httpSrv := &http.Server{Handler: s.tcpHandler()}
+	if s.cfg.TLSCertFile == "" {
+		return httpSrv.Serve(ln)
+	}
+	tlsCfg, terr := s.tlsConfig()
+	if terr != nil {
+		return terr
+	}
+	return httpSrv.Serve(tls.NewListener(ln, tlsCfg))
+}
+
+// tcpHandler wraps the API with token auth and rate limiting.
+func (s *Server) tcpHandler() http.Handler {
+	var h http.Handler = s.Handler()
+	if s.cfg.RateLimitPerSec > 0 {
+		h = newRateLimiter(s.cfg.RateLimitPerSec, s.cfg.RateLimitBurst).wrap(h)
+	}
+	if s.cfg.TCPToken != "" {
+		h = tokenAuth(h, s.cfg.TCPToken)
+	}
+	return h
+}
+
+// tlsConfig builds the TLS configuration for the TCP listener.
+func (s *Server) tlsConfig() (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(s.cfg.TLSCertFile, s.cfg.TLSKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	cfg := &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+	if s.cfg.TLSClientCAFile != "" {
+		pem, rerr := os.ReadFile(s.cfg.TLSClientCAFile)
+		if rerr != nil {
+			return nil, rerr
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, errors.New("raid: no certificates in client CA file")
+		}
+		cfg.ClientCAs = pool
+		cfg.ClientAuth = tls.RequireAndVerifyClientCert
+	}
+	return cfg, nil
 }
 
 // --- request plumbing ---
@@ -454,12 +535,63 @@ func (s *Server) handleApprovalCancel(w http.ResponseWriter, r *http.Request, id
 // --- receipts ---
 
 func (s *Server) handleReceiptSub(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/v1/receipts/")
-	if !strings.HasSuffix(id, "/consume") {
-		s.writeJSON(w, http.StatusNotFound, errDoc(CodeApprovalNotFound, "not found", false, s.reqID(r)))
+	rest := strings.TrimPrefix(r.URL.Path, "/v1/receipts/")
+	if strings.HasSuffix(rest, "/consume") {
+		s.handleReceiptConsume(w, r, strings.TrimSuffix(rest, "/consume"))
 		return
 	}
-	id = strings.TrimSuffix(id, "/consume")
+	s.handleReceiptGet(w, r, rest)
+}
+
+// handleReceiptGet reports a receipt's status and exposes its claims/signature
+// so a consumer can verify it independently against /v1/keys.
+func (s *Server) handleReceiptGet(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodGet {
+		s.writeJSON(w, http.StatusMethodNotAllowed, errDoc(CodeInputInvalid, "method not allowed", false, s.reqID(r)))
+		return
+	}
+	rec, err := s.cfg.Approvals.GetReceipt(id)
+	if err != nil {
+		s.writeJSON(w, http.StatusNotFound, errDoc(CodeApprovalNotFound, "receipt not found", false, s.reqID(r)))
+		return
+	}
+	status := "issued"
+	switch {
+	case rec.Consumed():
+		status = "consumed"
+	case rec.Expired(time.Now().UTC()):
+		status = "expired"
+	}
+	var sb strings.Builder
+	sb.WriteString(`{"id":`)
+	canonical.WriteEscaped(&sb, rec.ID())
+	sb.WriteString(`,"approval_id":`)
+	canonical.WriteEscaped(&sb, rec.ApprovalID())
+	sb.WriteString(`,"decision_id":`)
+	canonical.WriteEscaped(&sb, rec.DecisionID())
+	sb.WriteString(`,"key_id":`)
+	canonical.WriteEscaped(&sb, rec.KeyID())
+	sb.WriteString(`,"status":`)
+	canonical.WriteEscaped(&sb, status)
+	sb.WriteString(`,"request_hash":`)
+	canonical.WriteEscaped(&sb, canonical.RequestHashString(rec.RequestHash()))
+	sb.WriteString(`,"issued_at":`)
+	canonical.WriteEscaped(&sb, rec.IssuedAt().Format(time.RFC3339))
+	sb.WriteString(`,"expires_at":`)
+	canonical.WriteEscaped(&sb, rec.ExpiresAt().Format(time.RFC3339))
+	if c := rec.ConsumedAt(); c != nil {
+		sb.WriteString(`,"consumed_at":`)
+		canonical.WriteEscaped(&sb, c.Format(time.RFC3339))
+	}
+	sb.WriteString(`,"signature":`)
+	canonical.WriteEscaped(&sb, hex.EncodeToString(rec.Signature()))
+	sb.WriteString(`,"claims_bytes":`)
+	canonical.WriteEscaped(&sb, hex.EncodeToString(rec.ClaimsBytes()))
+	sb.WriteByte('}')
+	s.writeJSON(w, http.StatusOK, sb.String())
+}
+
+func (s *Server) handleReceiptConsume(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		s.writeJSON(w, http.StatusMethodNotAllowed, errDoc(CodeInputInvalid, "method not allowed", false, s.reqID(r)))
 		return
@@ -562,6 +694,13 @@ func (s *Server) handleJournal(w http.ResponseWriter, r *http.Request) {
 			limit = int64(n)
 		}
 	}
+	kind := r.URL.Query().Get("kind")
+	switch kind {
+	case "decision", "approval", "audit", "":
+	default:
+		s.writeJSON(w, http.StatusBadRequest, errDoc(CodeInputInvalid, "kind must be decision|approval|audit", false, s.reqID(r)))
+		return
+	}
 	rows, err := s.cfg.Store.Query(`
 		SELECT at_ns, kind, id, detail FROM (
 			SELECT created_at_ns AS at_ns, 'decision' AS kind, id AS id,
@@ -571,7 +710,7 @@ func (s *Server) handleJournal(w http.ResponseWriter, r *http.Request) {
 			       operation || ' [' || environment || '] ' || state FROM approvals
 			UNION ALL
 			SELECT created_at_ns, 'audit', id, kind FROM audit_events
-		) ORDER BY at_ns DESC LIMIT ?`, limit)
+		) WHERE (? = '' OR kind = ?) ORDER BY at_ns DESC LIMIT ?`, kind, kind, limit)
 	if err != nil {
 		s.writeJSON(w, http.StatusInternalServerError, errDoc(CodeInternal, "could not read journal", true, s.reqID(r)))
 		return
@@ -642,6 +781,32 @@ func (s *Server) handleGrants(w http.ResponseWriter, r *http.Request) {
 	}
 	sb.WriteByte(']')
 	s.writeJSON(w, http.StatusOK, sb.String())
+}
+
+// handleGrantSub revokes a grant (DELETE /v1/grants/{id}).
+func (s *Server) handleGrantSub(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/v1/grants/")
+	if id == "" {
+		s.writeJSON(w, http.StatusBadRequest, errDoc(CodeInputInvalid, "grant id required", false, s.reqID(r)))
+		return
+	}
+	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
+		s.writeJSON(w, http.StatusMethodNotAllowed, errDoc(CodeInputInvalid, "method not allowed", false, s.reqID(r)))
+		return
+	}
+	if s.cfg.Approvals == nil {
+		s.writeJSON(w, http.StatusNotFound, errDoc(CodeApprovalNotFound, "grant not found", false, s.reqID(r)))
+		return
+	}
+	if err := s.cfg.Approvals.RevokeGrant(id); err != nil {
+		if err == approval.ErrGrantNotFound {
+			s.writeJSON(w, http.StatusNotFound, errDoc(CodeApprovalNotFound, "grant not found", false, s.reqID(r)))
+			return
+		}
+		s.writeJSON(w, http.StatusInternalServerError, errDoc(CodeInternal, "revoke failed", true, s.reqID(r)))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, `{"revoked":true}`)
 }
 
 // handleKeys exposes the receipt public key to configured clients (14.3).

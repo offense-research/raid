@@ -60,6 +60,7 @@ type Approval struct {
 	requiredGroups   []string
 	quorum           uint32
 	allowScope       string
+	votes            int64
 	state            State
 	version          uint64
 	createdAt        time.Time
@@ -83,6 +84,7 @@ func (a *Approval) MatchedRuleIDs() []string { return a.matchedRuleIDs }
 func (a *Approval) RequiredGroups() []string { return a.requiredGroups }
 func (a *Approval) Quorum() uint32           { return a.quorum }
 func (a *Approval) AllowScope() string       { return a.allowScope }
+func (a *Approval) Votes() int64             { return a.votes }
 func (a *Approval) State() State             { return a.state }
 func (a *Approval) Version() uint64          { return a.version }
 func (a *Approval) CreatedAt() time.Time     { return a.createdAt }
@@ -143,6 +145,8 @@ func (a *Approval) WriteJSON(sb *strings.Builder) () {
 	sb.WriteString(strconv.FormatUint(uint64(a.quorum), 10))
 	sb.WriteString(`,"allow_scope":`)
 	canonical.WriteEscaped(sb, a.allowScope)
+	sb.WriteString(`,"votes":`)
+	sb.WriteString(strconv.FormatInt(a.votes, 10))
 	sb.WriteString(`,"state":`)
 	canonical.WriteEscaped(sb, string(a.state))
 	sb.WriteString(`,"version":`)
@@ -239,5 +243,12 @@ func (a *Approval) WithState(s State, now time.Time) *Approval {
 		c.resolvedAt = &res
 		c.version++
 	}
+	return c
+}
+
+// WithVotes returns a copy with the recorded approve-vote count replaced.
+func (a *Approval) WithVotes(n int64) *Approval {
+	c := a.Copy()
+	c.votes = n
 	return c
 }

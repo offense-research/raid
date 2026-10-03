@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"offense.dev/raid/core/cli"
@@ -65,6 +66,34 @@ func runDaemon(args []string) int {
 			if i + 1 < len(args) {
 				cfg.TCPAddr = args[i+1]
 			}
+		case "--tcp-token":
+			if i + 1 < len(args) {
+				cfg.TCPToken = args[i+1]
+			}
+		case "--tcp-cert":
+			if i + 1 < len(args) {
+				cfg.TLSCertFile = args[i+1]
+			}
+		case "--tcp-key":
+			if i + 1 < len(args) {
+				cfg.TLSKeyFile = args[i+1]
+			}
+		case "--tcp-client-ca":
+			if i + 1 < len(args) {
+				cfg.TLSClientCAFile = args[i+1]
+			}
+		case "--rate-limit":
+			if i + 1 < len(args) {
+				if f, ok := parseFloat(args[i+1]); ok {
+					cfg.RateLimitPerSec = f
+				}
+			}
+		case "--rate-burst":
+			if i + 1 < len(args) {
+				if n, ok := num(args[i+1]); ok {
+					cfg.RateLimitBurst = int(n)
+				}
+			}
 		case "--uid":
 			if i + 1 < len(args) {
 				if u, ok := num(args[i+1]); ok {
@@ -84,6 +113,9 @@ func runDaemon(args []string) int {
 			printDaemonUsage()
 			return 0
 		}
+	}
+	if cfg.TCPToken == "" {
+		cfg.TCPToken = os.Getenv("RAID_TCP_TOKEN")
 	}
 	if cfg.Solo {
 		// Unprivileged single-user defaults under the XDG state dir; the
@@ -164,9 +196,18 @@ func num(s string) (int64, bool) {
 		if c < '0' || c > '9' {
 			return 0, false
 		}
-		n = n * 10 + int64(c - '0')
+		n = n*10 + int64(c - '0')
 	}
 	return n, true
+}
+
+// parseFloat parses a positive float (rate limits).
+func parseFloat(s string) (float64, bool) {
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil || f <= 0 {
+		return 0, false
+	}
+	return f, true
 }
 
 func dirnameOf(path string) string {
@@ -181,7 +222,7 @@ func dirnameOf(path string) string {
 }
 
 func printDaemonUsage() {
-	fmt.Println(`raidd [flags]
+	fmt.Print(`raidd [flags]
 
   --socket <path>      unix socket path (default /run/offense/raid/raid.sock)
   --db <path>          sqlite database path
@@ -189,6 +230,12 @@ func printDaemonUsage() {
   --policy-preset <n>  activate an embedded preset (solo-dev-safe|review-only|ci-agent)
   --key <path>         ed25519 seed file (generated when absent)
   --tcp <addr>         optional tcp listener (remote mode)
+  --tcp-token <tok>    require this bearer token on the tcp listener
+  --tcp-cert <file>    serve tcp over TLS (with --tcp-key)
+  --tcp-key <file>     TLS private key for --tcp-cert
+  --tcp-client-ca <f>  require client certs signed by this CA (mTLS)
+  --rate-limit <n>     max requests/sec on the tcp listener
+  --rate-burst <n>     burst allowance for the tcp rate limit
   --uid <n>            allow unix socket peer uid (repeatable)
   --approver <subject:groups>  seed an approver (repeatable)
   --solo               unprivileged single-user mode (XDG state dir, self-approval)
