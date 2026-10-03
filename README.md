@@ -8,6 +8,11 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/offense-research/raid/badge)](https://securityscorecards.dev/viewer/?uri=github.com/offense-research/raid)
 [![Go](https://img.shields.io/badge/Go-1.26+-blue)](go.mod)
 
+**Raid decides what your coding agents are allowed to do.** You write the rules
+once; after that, ordinary actions pass straight through, and anything
+consequential pauses for a quick human yes - no blanket "approve every single
+step" prompts, and no unguarded free-for-all.
+
 Raid is a fast, agent-native **policy and approval engine**. An agent (or
 an execution proxy) submits a normalized proposed action; Raid
 evaluates precompiled deterministic policy (CEL) and returns
