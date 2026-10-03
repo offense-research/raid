@@ -66,6 +66,20 @@ without making developers wait on routine work.
 
 ## Install
 
+One-line install (downloads the release binary for your OS/arch, verifies its
+checksum, and puts `raid` + `raidd` on your PATH):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/offense-research/raid/main/install.sh | sh
+```
+
+Homebrew:
+
+```sh
+brew install --formula ./packaging/homebrew/raid.rb
+# or tap it: brew tap offense-research/raid https://github.com/offense-research/raid && brew install raid
+```
+
 Prebuilt binaries for **linux** and **macOS** (amd64/arm64) are attached to each
 [release](https://github.com/offense-research/raid/releases). Or install from
 source with [Go 1.26+](https://go.dev/dl/):
@@ -187,8 +201,8 @@ cd integrations/claude-code && RAID_ENV=development ./install.sh   # Claude Code
 ```
 
 For Cursor, copy `integrations/cursor/hooks.example.json` to
-`~/.cursor/hooks.json` and point the command paths at your checkout. Terminal/CLI agents use the shared `raid-exec` shim in
-`integrations/cli/`. Every adapter shares `integrations/lib/raidlib.py`; see `integrations/*/README.md`.
+`~/.cursor/hooks.json` and point the command paths at your checkout. Both
+adapters share `integrations/lib/raidlib.py`; see `integrations/*/README.md`.
 
 ### 7. Connect and secure clients
 
@@ -259,11 +273,10 @@ Single Go module (`github.com/offense-research/raid`):
 - `core/nlpolicy` — OpenRouter natural-language → policy draft (authoring aid)
 - `core/server` — daemon boot; `core/cli` — the `raid` command surface
 - `pkg/raidclient` — Go client for the CLI, TUI, and proxies
-- `integrations/` — coding-agent adapters (Claude Code, Cursor, Aider, Codex
-  CLI) + shared `lib/raidlib.py` and the `cli/` `raid-exec` shim · `skills/` —
-  drop-in provisioning skill · `api/` — OpenAPI and JSON schemas · `docs/` —
-  threat model, policy language, approvals, Jev, performance · `examples/` —
-  demo policy + requests
+- `integrations/` — coding-agent adapters (Claude Code, Cursor) + shared
+  `lib/raidlib.py` · `skills/` — drop-in provisioning skill · `api/` — OpenAPI
+  and JSON schemas · `docs/` — threat model, policy language, approvals, Jev,
+  performance · `examples/` — demo policy + requests
 
 ## Configuration
 
@@ -359,17 +372,12 @@ deny-with-instructions, so approval stays inside Raid).
 # point the command paths at your checkout (see integrations/cursor/README.md)
 ```
 
-**Aider / Codex CLI** (`integrations/aider/`, `integrations/codex/`): CLI agents
-with no pre-tool hook API are gated through the shared `raid-exec` shim
-(`integrations/cli/`), which runs a command only when Raid allows it; Codex CLI
-also picks up the shared MCP server for `raid_check`/`raid_pending`.
-
 See each adapter's README for details and security invariants.
 
 ## Roadmap
 
 - **More agent adapters** (Codex CLI, Gemini CLI, Crush) on the shared library.
-- **Packaging:** `go install`, a Homebrew tap, and an npm/PyPI wrapper.
+- **Packaging:** an npm/PyPI wrapper.
 - **Policy simulation:** dry-run a request corpus against a candidate bundle.
 
 ## Provisioning skill
