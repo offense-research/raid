@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Raid is a fast, agent-native **policy and approval engine**: a single Go
-binary acts as both the `raidd` daemon and the `raid` CLI. Agents (or Surge,
+binary acts as both the `raidd` daemon and the `raid` CLI. Agents (or
 an execution proxy) submit a normalized proposed action over a Unix socket;
 Raid evaluates precompiled deterministic policy (CEL) and returns
 `allow | deny | require_approval`. When approval is required, a human
@@ -145,7 +145,7 @@ Module map (all under `core/`):
   implements (e.g. "spec 7.6", "spec 8.1") — keep those annotations in sync.
 - Wire/API contracts live in `api/openapi.yaml`, `api/action.schema.json`,
   `api/policy.schema.json`; keep them in lockstep with code.
-- Example policy and requests under `examples/policies/` and `examples/surge/`
+- Example policy and requests under `examples/policies/` and `examples/proxy/`
   are the demo and smoke-test fixtures.
 
 ## Provisioning / operating (reference)

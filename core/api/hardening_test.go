@@ -42,7 +42,7 @@ func TestReceiptStatusGrantRevokeAndJournalFilter(t *testing.T) {
 	}
 
 	// consume, then the status flips to consumed
-	resp, err = client.Post("/v1/receipts/"+receiptID+"/consume", `{"consumer":"surge"}`, "", nil)
+	resp, err = client.Post("/v1/receipts/"+receiptID+"/consume", `{"consumer":"proxy"}`, "", nil)
 	resp = mustOk(t, resp, err)
 	resp, err = client.Get("/v1/receipts/"+receiptID, "")
 	resp = mustOk(t, resp, err)

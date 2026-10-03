@@ -44,7 +44,7 @@ RAID_PREFIX=/var/lib/offense/raid sh tools/raid-provision.sh
 
 Defaults: socket `$PREFIX/raid.sock`, DB `$PREFIX/raid.db`, Ed25519 seed
 `$PREFIX/ed25519.seed` (generated on first boot), policy
-`examples/policies/surge-default.yaml`, approver `<user>:maintainers,admins`,
+`examples/policies/demo-default.yaml`, approver `<user>:maintainers,admins`,
 socket UID allowlist `0 <uid>`. All overridable: `RAID_SOCKET`, `RAID_DB`,
 `RAID_KEY`, `RAID_POLICY`, `RAID_APPROVER_SUBJECT`, `RAID_UID`,
 `RAID_APPROVER`. The script ends by running `raid doctor` and a three-case
@@ -56,7 +56,7 @@ demo (allow, require_approval → approve, deny).
 mkdir -p /var/lib/offense/raid
 ./raidd --socket /var/lib/offense/raid/raid.sock \
         --db     /var/lib/offense/raid/raid.db \
-        --policy examples/policies/surge-default.yaml \
+        --policy examples/policies/demo-default.yaml \
         --key    /var/lib/offense/raid/ed25519.seed \
         --uid 0 --uid "$(id -u)" \
         --approver "$(id -un):maintainers,admins" &
@@ -122,7 +122,7 @@ receipt is bound to the exact request, so a different retry is rejected.
 ## 4. Readiness and operation
 
 - Check: `raid doctor` → `raidd: reachable` + active bundle JSON.
-- Eval: `raid decision eval --request examples/surge/reader-list.json`.
+- Eval: `raid decision eval --request examples/proxy/reader-list.json`.
 - List approvals: `raid approval list` (JSON; the TUI is `raid approve`, TTY
   required — non-TTY exit is an explicit error by design).
 - Approve: `raid approval approve <id> --expected-version 0` (read the

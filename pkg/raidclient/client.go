@@ -1,5 +1,5 @@
 // Raid client: minimal HTTP/1.1 over a Unix socket for the CLI, TUI, and
-// Surge integration.
+// CLI, TUI, and execution-proxy integration.
 package raidclient
 
 import (

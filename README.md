@@ -9,7 +9,7 @@
 [![Go](https://img.shields.io/badge/Go-1.26+-blue)](go.mod)
 
 Raid is a fast, agent-native **policy and approval engine**. An agent (or
-Surge, an execution proxy) submits a normalized proposed action; Raid
+an execution proxy) submits a normalized proposed action; Raid
 evaluates precompiled deterministic policy (CEL) and returns
 `allow | deny | require_approval`. When approval is required, a human
 approves from a keyboard-first terminal UI and Raid returns a **signed,
@@ -39,7 +39,7 @@ ambiguous actions to approval, but it can never reduce a deterministic
 restriction.
 
 Who this is for: teams building agents, automation, or execution proxies
-(Surge-style) who want auditable bounds on what those agents may do —
+(proxy-style) who want auditable bounds on what those agents may do —
 without making developers wait on routine work.
 
 - **Fast by construction** — policies compile before activation; active
@@ -105,7 +105,7 @@ Multi-approver (teams):
 mkdir -p /tmp/raid-demo
 ./raidd --socket /tmp/raid-demo/raid.sock \
         --db     /tmp/raid-demo/raid.db \
-        --policy examples/policies/surge-default.yaml \
+        --policy examples/policies/demo-default.yaml \
         --key    /tmp/raid-demo/ed25519.seed \
         --uid "$(id -u)" \
         --approver "$(id -un):maintainers,admins" &
@@ -132,9 +132,9 @@ file and read the decision (`effect`, `reason_code`, matched rules, and on
 `require_approval` the approval `id`):
 
 ```sh
-./raid decision eval --request examples/surge/reader-list.json       # allow
-./raid decision eval --request examples/surge/label-write-prod.json  # require_approval
-./raid decision eval --request examples/surge/delete-repo.json       # deny
+./raid decision eval --request examples/proxy/reader-list.json       # allow
+./raid decision eval --request examples/proxy/label-write-prod.json  # require_approval
+./raid decision eval --request examples/proxy/delete-repo.json       # deny
 ```
 
 ### 3. Resolve approvals
@@ -213,7 +213,7 @@ token, bind TCP to loopback only.
 mkdir -p /tmp/raid-demo
 ./raidd --socket /tmp/raid-demo/raid.sock \
         --db /tmp/raid-demo/raid.db \
-        --policy examples/policies/surge-default.yaml \
+        --policy examples/policies/demo-default.yaml \
         --key /tmp/raid-demo/ed25519.seed --uid "$(id -u)" \
         --approver "$(id -un):maintainers,admins" &
 
@@ -221,10 +221,10 @@ export RAID_SOCKET=/tmp/raid-demo/raid.sock
 ./raid doctor
 
 # 1. safe read — allowed instantly, no prompt
-./raid decision eval --request examples/surge/reader-list.json
+./raid decision eval --request examples/proxy/reader-list.json
 
 # 2. production write — requires approval
-./raid decision eval --request examples/surge/label-write-prod.json
+./raid decision eval --request examples/proxy/label-write-prod.json
 
 # 3. watch the approval land in the TUI (or list it noninteractively)
 ./raid approval list
@@ -233,7 +233,7 @@ export RAID_SOCKET=/tmp/raid-demo/raid.sock
 ./raid approval approve apr_... --expected-version 0
 
 # 5. a deterministic deny never prompts
-./raid decision eval --request examples/surge/delete-repo.json
+./raid decision eval --request examples/proxy/delete-repo.json
 ```
 
 The SSE stream (`/v1/approvals/stream`), signed receipt issuance, and
@@ -258,7 +258,7 @@ Single Go module (`github.com/offense-research/raid`):
 - `core/jev` — TypeSafe System One adapter, sanitizer, thresholds, cache
 - `core/nlpolicy` — OpenRouter natural-language → policy draft (authoring aid)
 - `core/server` — daemon boot; `core/cli` — the `raid` command surface
-- `pkg/raidclient` — Go client for CLI / TUI / Surge
+- `pkg/raidclient` — Go client for the CLI, TUI, and proxies
 - `integrations/` — coding-agent adapters (Claude Code, Cursor) + shared
   `lib/raidlib.py` · `skills/` — drop-in provisioning skill · `api/` — OpenAPI
   and JSON schemas · `docs/` — threat model, policy language, approvals, Jev,
@@ -396,5 +396,5 @@ the unpublished-repo fallback):
 ## Security
 
 See `docs/threat-model.md` for the invariants and accepted MVP limitations.
-The core position: Raid can restrict Surge, never grant what Surge did not
+The core position: Raid can restrict a caller, never grant what it did not
 already authorize, and a model is never the arbiter of authority.

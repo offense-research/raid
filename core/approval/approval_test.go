@@ -34,12 +34,12 @@ rules:
 
 const writeReq = `{
   "schema_version": 1,
-  "request_id": "surge:act_02J",
+  "request_id": "proxy:act_02J",
   "principal": {"subject_id": "usr_imran", "agent_id": "agt_claude", "session_id": "ses_9821", "runtime": "claude-code", "groups": ["engineering"], "trust_level": "local-session", "revision": 4},
   "action": {"provider": "github", "operation": "github.issues.add_labels", "effect": "write"},
   "resource": {"type": "github.repository.issue", "id": "repo:991234567:issue:184", "environment": "production", "attributes": {"repository_id": "991234567"}},
   "arguments": {"labels": {"type": "list", "value": [{"type": "string", "value": "needs-triage"}]}},
-  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "surge", "source_version": "0.1.0", "source_request_id": "act_02J", "task_summary": "triage", "interactive": true}
+  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "proxy", "source_version": "0.1.0", "source_request_id": "act_02J", "task_summary": "triage", "interactive": true}
 }`
 
 func setup(t *testing.T) (*store.Store, *decision.Engine, *approval.Service, *signing.KeyPair, *canonical.ActionRequest) {
@@ -191,10 +191,10 @@ func TestA05ReceiptReplayFails(t *testing.T) {
 	if err := st.QueryRow(`SELECT id FROM receipts WHERE approval_id = ?`, appr.ID()).Scan(&receiptID); err != nil {
 		t.Fatalf("receipt lookup: %v", err)
 	}
-	if err := svc.Consume(receiptID, "surge"); err != nil {
+	if err := svc.Consume(receiptID, "proxy"); err != nil {
 		t.Fatalf("first consume: %v", err)
 	}
-	if err := svc.Consume(receiptID, "surge"); err != nil {
+	if err := svc.Consume(receiptID, "proxy"); err != nil {
 		if err != approval.ErrAlreadyConsumed {
 			t.Errorf("second consume error should be ErrAlreadyConsumed, got %v", err)
 		}
@@ -250,12 +250,12 @@ func TestA04NoArgSubstitution(t *testing.T) {
 	// substitute an argument: the canonical hash changes
 	altered := `{
   "schema_version": 1,
-  "request_id": "surge:act_02J",
+  "request_id": "proxy:act_02J",
   "principal": {"subject_id": "usr_imran", "agent_id": "agt_claude", "session_id": "ses_9821", "runtime": "claude-code", "groups": ["engineering"], "trust_level": "local-session", "revision": 4},
   "action": {"provider": "github", "operation": "github.issues.add_labels", "effect": "write"},
   "resource": {"type": "github.repository.issue", "id": "repo:991234567:issue:184", "environment": "production", "attributes": {"repository_id": "991234567"}},
   "arguments": {"labels": {"type": "list", "value": [{"type": "string", "value": "sneaky"}]}},
-  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "surge", "source_version": "0.1.0", "source_request_id": "act_02J", "task_summary": "triage", "interactive": true}
+  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "proxy", "source_version": "0.1.0", "source_request_id": "act_02J", "task_summary": "triage", "interactive": true}
 }`
 	req2, perr := canonical.DecodeRequest([]byte(altered))
 	if perr != nil {

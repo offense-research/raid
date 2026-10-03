@@ -11,7 +11,7 @@ Everything a single team needs to run Raid forever without Offense:
 
 - Full deterministic policy engine (CEL) and policy tooling
 - Local approvals, the Bubble Tea TUI, SQLite storage, signed receipts
-- Local audit log, SSE events, Surge integration, SDKs and API schemas
+- Local audit log, SSE events, execution-proxy integration, SDKs and API schemas
 - The Jev adapter with a user-supplied TypeSafe key
 - **All security fixes**, to every supported version
 

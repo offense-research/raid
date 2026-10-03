@@ -5,7 +5,7 @@ Document version: 0.1-draft. Status: engineering handoff.
 ## Trust boundaries
 
 Raid runs as a local daemon (`raidd`) on the same host as its agents
-(Surge). The open-source MVP trusts the host administrator and the local
+(the execution proxy). The open-source MVP trusts the host administrator and the local
 approver surface; its job is to make *agent* authority auditable and
 bounded, not to defend against the host admin (see non-goals).
 
@@ -15,7 +15,7 @@ Trusted:
 - the daemon binary and its SQLite store
 
 Untrusted:
-- agent requests (Surge or any local process reaching the socket)
+- agent requests (an execution proxy or any local process reaching the socket)
 - any remote callers on the TCP listener
 - free-form text in requests (agent ids, task summaries, argument values)
 
@@ -35,7 +35,7 @@ Untrusted:
 | RAID-SEC-010 | Approval durable before visible/actionable | Approval create commits synchronously (SQLite fsync) before any response/event |
 | RAID-SEC-011 | Activation separate from agent/approver authority | `/v1/policies/activate` requires an active approver in the `admins` group |
 | RAID-SEC-012 | Approver decisions: authenticated identity + optimistic concurrency | Approver resolved from the approvers table (never client claims); version predicate update |
-| RAID-SEC-013 | Surge reauthorizes its grant after approval | Surge-side contract; `raidclient` exposes the receipt for verification, Surge rechecks grant before dispatch |
+| RAID-SEC-013 | The caller reauthorizes its grant after approval | Caller-side contract; `raidclient` exposes the receipt for verification, the caller rechecks its grant before dispatch |
 | RAID-SEC-014 | Slow TUI client cannot block decisions | Bounded per-subscriber queues; slow subscribers dropped; events resume from sequence |
 | RAID-SEC-015 | Backpressure => safe unavailability | Explicit limits (request size, subscriber cap, queue caps); failures return 503 rather than dropping |
 

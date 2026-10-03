@@ -125,7 +125,7 @@ calls and check raidd), paste this into Claude:
 
 Manual CLI, no daemon surprises:
   export RAID_SOCKET=$SOCK
-  $RAID decision eval --request examples/surge/reader-list.json
+  $RAID decision eval --request examples/proxy/reader-list.json
   $RAID approval list
   $RAID approval approve <id> --expected-version 0
 EOF

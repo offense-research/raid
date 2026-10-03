@@ -9,13 +9,13 @@ import (
 	"github.com/offense-research/raid/core/policy"
 )
 
-// surgeDefault is the spec's demonstration bundle (section 6.2), adapted for
+// demoBundle is the spec's demonstration bundle (section 6.2), adapted for
 // the MVP (quorum 1 remains unimplemented in the open-source engine).
-const surgeDefault = `
+const demoBundle = `
 apiVersion: offense.dev/raid/v1alpha1
 kind: PolicyBundle
 metadata:
-  name: surge-default
+  name: demo-default
   revision: 7
 defaults:
   effect: deny
@@ -55,7 +55,7 @@ rules:
 
 const readerJSON = `{
   "schema_version": 1,
-  "request_id": "surge:act_01J",
+  "request_id": "proxy:act_01J",
   "principal": {
     "subject_id": "usr_imran", "agent_id": "agt_claude", "session_id": "ses_9821",
     "runtime": "claude-code", "groups": ["engineering"], "trust_level": "local-session", "revision": 4
@@ -63,12 +63,12 @@ const readerJSON = `{
   "action": {"provider": "github", "operation": "github.issues.get", "effect": "read"},
   "resource": {"type": "github.repository.issue", "id": "repo:991234567:issue:184", "environment": "staging", "attributes": {"repository_id": "991234567"}},
   "arguments": {},
-  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "surge", "source_version": "0.1.0", "source_request_id": "act_01J", "task_summary": "read issues", "interactive": true}
+  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "proxy", "source_version": "0.1.0", "source_request_id": "act_01J", "task_summary": "read issues", "interactive": true}
 }`
 
 const labelWriteJSON = `{
   "schema_version": 1,
-  "request_id": "surge:act_02J",
+  "request_id": "proxy:act_02J",
   "principal": {
     "subject_id": "usr_imran", "agent_id": "agt_claude", "session_id": "ses_9821",
     "runtime": "claude-code", "groups": ["engineering"], "trust_level": "local-session", "revision": 4
@@ -76,17 +76,17 @@ const labelWriteJSON = `{
   "action": {"provider": "github", "operation": "github.issues.add_labels", "effect": "write"},
   "resource": {"type": "github.repository.issue", "id": "repo:991234567:issue:184", "environment": "production", "attributes": {"repository_id": "991234567"}},
   "arguments": {"labels": {"type": "list", "value": [{"type": "string", "value": "needs-triage"}]}},
-  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "surge", "source_version": "0.1.0", "source_request_id": "act_02J", "task_summary": "Summarize and triage open issues", "interactive": true}
+  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "proxy", "source_version": "0.1.0", "source_request_id": "act_02J", "task_summary": "Summarize and triage open issues", "interactive": true}
 }`
 
 const deleteRepoJSON = `{
   "schema_version": 1,
-  "request_id": "surge:act_03J",
+  "request_id": "proxy:act_03J",
   "principal": {"subject_id": "usr_imran", "agent_id": "agt_claude", "session_id": "ses_9821", "runtime": "claude-code", "groups": ["engineering"], "trust_level": "local-session", "revision": 4},
   "action": {"provider": "github", "operation": "github.repository.delete", "effect": "delete"},
   "resource": {"type": "github.repository", "id": "repo:991234567", "environment": "production", "attributes": {"repository_id": "991234567"}},
   "arguments": {},
-  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "surge", "source_version": "0.1.0", "source_request_id": "act_03J", "task_summary": "delete repo", "interactive": true}
+  "context": {"timestamp": "2026-09-22T20:00:00Z", "source_product": "proxy", "source_version": "0.1.0", "source_request_id": "act_03J", "task_summary": "delete repo", "interactive": true}
 }`
 
 func compileFixture(t *testing.T, yamlDoc string) *policy.CompiledBundle {
@@ -141,7 +141,7 @@ func TestP02UnknownFieldRejected(t *testing.T) {
 
 // P03: CEL compile type error fails activation.
 func TestP03CelTypeErrorFailsActivation(t *testing.T) {
-	doc := strings.Replace(surgeDefault,
+	doc := strings.Replace(demoBundle,
 		`resource.environment != "production"`, `resource.environment + 2`, 1)
 	schema, lerr := policy.LoadBundle([]byte(doc), "test")
 	if lerr != nil {
@@ -154,7 +154,7 @@ func TestP03CelTypeErrorFailsActivation(t *testing.T) {
 
 // P03b: unknown function fails activation.
 func TestP03bUnknownFunctionFailsActivation(t *testing.T) {
-	doc := strings.Replace(surgeDefault,
+	doc := strings.Replace(demoBundle,
 		`resource.environment != "production"`, `noSuchFunction(resource)`, 1)
 	schema, lerr := policy.LoadBundle([]byte(doc), "test")
 	if lerr != nil {
@@ -196,7 +196,7 @@ rules:
 // P05: require_approval wins over allow.
 func TestP05ApprovalWinsOverAllow(t *testing.T) {
 	// add an allow rule that also matches the label write
-	doc := strings.Replace(surgeDefault, `- id: deny-repository-deletion`, `- id: label-anywhere-allow
+	doc := strings.Replace(demoBundle, `- id: deny-repository-deletion`, `- id: label-anywhere-allow
     match:
       providers: [github]
       operations: [github.issues.add_labels]
@@ -215,7 +215,7 @@ func TestP05ApprovalWinsOverAllow(t *testing.T) {
 // P06: any matching deny wins.
 func TestP06DenyWins(t *testing.T) {
 	// a deny rule for issue-writes outranks the approval rule
-	doc := strings.Replace(surgeDefault, `- id: deny-repository-deletion`, `- id: deny-all-writes
+	doc := strings.Replace(demoBundle, `- id: deny-repository-deletion`, `- id: deny-all-writes
     match:
       effects: [write]
     effect: deny
@@ -254,7 +254,7 @@ func TestP08HugeIndexBounded(t *testing.T) {
 
 // P09: a failing embedded test rejects activation.
 func TestP09EmbeddedTestGate(t *testing.T) {
-	doc := surgeDefault + `
+	doc := demoBundle + `
 tests:
   - name: reader can list issues
     input: reader-list.json
@@ -281,7 +281,7 @@ tests:
 
 // P09b: passing embedded tests activate.
 func TestP09bEmbeddedTestsPass(t *testing.T) {
-	doc := surgeDefault + `
+	doc := demoBundle + `
 tests:
   - name: reader can list issues
     input: reader-list.json
@@ -319,15 +319,15 @@ tests:
 
 // Happy-path allow and deny against the demonstration bundle.
 func TestAllowDenyBasics(t *testing.T) {
-	d := evalFixture(t, surgeDefault, readerJSON)
+	d := evalFixture(t, demoBundle, readerJSON)
 	if d.Effect() != "allow" {
 		t.Errorf("reader should be allowed, got %v (%v)", d.Effect(), d.ReasonCode())
 	}
-	d = evalFixture(t, surgeDefault, labelWriteJSON)
+	d = evalFixture(t, demoBundle, labelWriteJSON)
 	if d.Effect() != "require_approval" {
 		t.Errorf("label write should require approval, got %v", d.Effect())
 	}
-	d = evalFixture(t, surgeDefault, deleteRepoJSON)
+	d = evalFixture(t, demoBundle, deleteRepoJSON)
 	if d.Effect() != "deny" {
 		t.Errorf("delete should be denied, got %v", d.Effect())
 	}

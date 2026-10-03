@@ -1,8 +1,8 @@
-# Fake Surge adapter
+# Demo execution proxy
 
-This directory holds the demonstration Surge integration: normalized request
-documents plus a scripted client that behaves exactly like Surge's Raid
-layer (step 6-13 of the spec call order).
+This directory holds the demonstration execution-proxy integration: normalized
+request documents plus a scripted client that behaves exactly like a proxy's
+Raid layer (step 6-13 of the spec call order).
 
 ## Requests
 
@@ -14,21 +14,21 @@ layer (step 6-13 of the spec call order).
 
 ## Call order (spec 11.2) as exercised here
 
-1. (Surge authenticates the agent — out of band)
+1. (the proxy authenticates the agent — out of band)
 2. Decode + normalize (raidclient sends the JSON document)
-3. Surge grant check (out of band; Raid can only restrict)
+3. proxy grant check (out of band; Raid can only restrict)
 4. `POST /v1/decisions`
-5. allowed → Surge dispatches
-6. denied → Surge records the denial
-7. approval required → Surge persists its waiting state, polls
+5. allowed → the proxy dispatches
+6. denied → the proxy records the denial
+7. approval required → the proxy persists its waiting state, polls
    `GET /v1/decisions/{id}/wait`
 8. human approves (TUI `y` or `raid approval approve`)
-9. Surge verifies the receipt:
+9. the proxy verifies the receipt:
    - signature over `claims_bytes` against `/v1/keys` public key
    - request hash == executed action's canonical hash
    - effect `allow`, times valid
 10. `POST /v1/receipts/{id}/consume` (once)
-11. Surge rechecks its grant, then dispatches
+11. the proxy rechecks its grant, then dispatches
 
 ## Script
 

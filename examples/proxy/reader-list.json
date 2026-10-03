@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "request_id": "surge:act_01J",
+  "request_id": "proxy:act_01J",
   "principal": {
     "subject_id": "usr_imran",
     "agent_id": "agt_claude",
@@ -26,7 +26,7 @@
   "arguments": {},
   "context": {
     "timestamp": "2026-09-22T20:00:00Z",
-    "source_product": "surge",
+    "source_product": "proxy",
     "source_version": "0.1.0",
     "source_request_id": "act_01J",
     "task_summary": "Summarize and triage open issues",

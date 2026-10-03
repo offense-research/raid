@@ -21,7 +21,7 @@ fi
 SOCK="${RAID_SOCKET:-$PREFIX/raid.sock}"
 DB="${RAID_DB:-$PREFIX/raid.db}"
 KEY="${RAID_KEY:-$PREFIX/ed25519.seed}"
-POLICY="${RAID_POLICY:-$REPO/examples/policies/surge-default.yaml}"
+POLICY="${RAID_POLICY:-$REPO/examples/policies/demo-default.yaml}"
 APPROVER_SUBJECT="${RAID_APPROVER_SUBJECT:-$(id -un)}"
 APPROVER="${RAID_APPROVER:-$APPROVER_SUBJECT:maintainers,admins}"
 UID_LIST="${RAID_UID:-0 $(id -u)}"
@@ -72,10 +72,10 @@ log "sanity: raid doctor"
 "$REPO/raid" doctor
 
 log "demo: reader (allow, no prompt)"
-"$REPO/raid" decision eval --request "$REPO/examples/surge/reader-list.json" | head -c 160; echo
+"$REPO/raid" decision eval --request "$REPO/examples/proxy/reader-list.json" | head -c 160; echo
 
 log "demo: production label write (require_approval)"
-RESP="$("$REPO/raid" decision eval --request "$REPO/examples/surge/label-write-prod.json")"
+RESP="$("$REPO/raid" decision eval --request "$REPO/examples/proxy/label-write-prod.json")"
 echo "$RESP" | head -c 200; echo
 APR="$(echo "$RESP" | sed -n 's/.*"approval":{"id":"\([a-z0-9_]*\)".*/\1/p')"
 
@@ -83,7 +83,7 @@ log "demo: approve once (expect_approval at version 0)"
 "$REPO/raid" approval approve "$APR" --expected-version 0 | sed 's/,"signature":"[^"]*"/,"signature":"<sig>"/' | head -c 240; echo
 
 log "demo: deterministic deny (never prompts)"
-"$REPO/raid" decision eval --request "$REPO/examples/surge/delete-repo.json" | head -c 160; echo
+"$REPO/raid" decision eval --request "$REPO/examples/proxy/delete-repo.json" | head -c 160; echo
 
 log "provisioned. Interact:"
 printf '  export RAID_SOCKET=%s\n' "$SOCK"

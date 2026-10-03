@@ -41,6 +41,6 @@ run-demo: all
 	rm -f /tmp/raid-demo/raid.sock /tmp/raid-demo/raid.db*
 	./raidd --socket /tmp/raid-demo/raid.sock \
 	        --db /tmp/raid-demo/raid.db \
-	        --policy examples/policies/surge-default.yaml \
+	        --policy examples/policies/demo-default.yaml \
 	        --key /tmp/raid-demo/ed25519.seed --uid 0 --uid $$(id -u) \
 	        --approver $$(id -un):maintainers,admins

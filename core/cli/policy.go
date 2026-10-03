@@ -43,7 +43,7 @@ func cmdPolicy(args []string) int {
 const starterPolicy = `apiVersion: offense.dev/raid/v1alpha1
 kind: PolicyBundle
 metadata:
-  name: surge-default
+  name: demo-default
   revision: 1
 defaults:
   effect: deny
@@ -51,7 +51,7 @@ rules:
   - id: deny-missing-policy
     description: Default deny until rules are added
     match:
-      providers: [surge]
+      providers: [proxy]
     when: "true"
     effect: deny
 `

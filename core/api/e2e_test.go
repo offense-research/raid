@@ -1,5 +1,5 @@
 // End-to-end integration test: in-process daemon wired over a Unix socket,
-// driven exactly like Surge would drive it (spec 1.2 demo + section 18.3).
+// driven exactly like an execution proxy would (spec 1.2 demo + section 18.3).
 package api_test
 
 import (
@@ -24,7 +24,7 @@ import (
 const bundleYAML = `
 apiVersion: offense.dev/raid/v1alpha1
 kind: PolicyBundle
-metadata: {name: surge-default, revision: 7}
+metadata: {name: demo-default, revision: 7}
 defaults: {effect: deny}
 rules:
   - id: github-issue-reads
@@ -53,11 +53,11 @@ rules:
     effect: deny
 `
 
-const readerJSON = `{"schema_version":1,"request_id":"surge:act_01J","principal":{"subject_id":"usr_imran","agent_id":"agt_claude","session_id":"ses_9821","runtime":"claude-code","groups":["engineering"],"trust_level":"local-session","revision":4},"action":{"provider":"github","operation":"github.issues.get","effect":"read"},"resource":{"type":"github.repository.issue","id":"repo:991234567:issue:184","environment":"staging","attributes":{"repository_id":"991234567"}},"arguments":{},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"surge","source_version":"0.1.0","source_request_id":"act_01J","task_summary":"read issues","interactive":true}}`
+const readerJSON = `{"schema_version":1,"request_id":"proxy:act_01J","principal":{"subject_id":"usr_imran","agent_id":"agt_claude","session_id":"ses_9821","runtime":"claude-code","groups":["engineering"],"trust_level":"local-session","revision":4},"action":{"provider":"github","operation":"github.issues.get","effect":"read"},"resource":{"type":"github.repository.issue","id":"repo:991234567:issue:184","environment":"staging","attributes":{"repository_id":"991234567"}},"arguments":{},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"proxy","source_version":"0.1.0","source_request_id":"act_01J","task_summary":"read issues","interactive":true}}`
 
-const labelJSON = `{"schema_version":1,"request_id":"surge:act_02J","principal":{"subject_id":"usr_imran","agent_id":"agt_claude","session_id":"ses_9821","runtime":"claude-code","groups":["engineering"],"trust_level":"local-session","revision":4},"action":{"provider":"github","operation":"github.issues.add_labels","effect":"write"},"resource":{"type":"github.repository.issue","id":"repo:991234567:issue:184","environment":"production","attributes":{"repository_id":"991234567"}},"arguments":{"labels":{"type":"list","value":[{"type":"string","value":"needs-triage"}]}},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"surge","source_version":"0.1.0","source_request_id":"act_02J","task_summary":"triage","interactive":true}}`
+const labelJSON = `{"schema_version":1,"request_id":"proxy:act_02J","principal":{"subject_id":"usr_imran","agent_id":"agt_claude","session_id":"ses_9821","runtime":"claude-code","groups":["engineering"],"trust_level":"local-session","revision":4},"action":{"provider":"github","operation":"github.issues.add_labels","effect":"write"},"resource":{"type":"github.repository.issue","id":"repo:991234567:issue:184","environment":"production","attributes":{"repository_id":"991234567"}},"arguments":{"labels":{"type":"list","value":[{"type":"string","value":"needs-triage"}]}},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"proxy","source_version":"0.1.0","source_request_id":"act_02J","task_summary":"triage","interactive":true}}`
 
-const delJSON = `{"schema_version":1,"request_id":"surge:act_03J","principal":{"subject_id":"usr_imran","agent_id":"agt_claude","session_id":"ses_9821","runtime":"claude-code","groups":["engineering"],"trust_level":"local-session","revision":4},"action":{"provider":"github","operation":"github.repository.delete","effect":"delete"},"resource":{"type":"repo","id":"repo:991234567","environment":"production","attributes":{}},"arguments":{},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"surge","source_version":"0.1.0","source_request_id":"act_03J","task_summary":"delete","interactive":true}}`
+const delJSON = `{"schema_version":1,"request_id":"proxy:act_03J","principal":{"subject_id":"usr_imran","agent_id":"agt_claude","session_id":"ses_9821","runtime":"claude-code","groups":["engineering"],"trust_level":"local-session","revision":4},"action":{"provider":"github","operation":"github.repository.delete","effect":"delete"},"resource":{"type":"repo","id":"repo:991234567","environment":"production","attributes":{}},"arguments":{},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"proxy","source_version":"0.1.0","source_request_id":"act_03J","task_summary":"delete","interactive":true}}`
 
 var socketPath = "/tmp/raid-e2e-" + fmt.Sprintf("%d", time.Now().UnixNano()) + ".sock"
 
@@ -170,9 +170,9 @@ func TestEndToEndDemoFlow(t *testing.T) {
 
 	// 6. consume then replay must fail
 	receiptID := claims.ReceiptID
-	resp, err = client.Post("/v1/receipts/"+receiptID+"/consume", `{"consumer":"surge"}`, "", nil)
+	resp, err = client.Post("/v1/receipts/"+receiptID+"/consume", `{"consumer":"proxy"}`, "", nil)
 	resp = mustOk(t, resp, err)
-	resp, err = client.Post("/v1/receipts/"+receiptID+"/consume", `{"consumer":"surge"}`, "", nil)
+	resp, err = client.Post("/v1/receipts/"+receiptID+"/consume", `{"consumer":"proxy"}`, "", nil)
 	if resp.Status != 409 {
 		t.Errorf("receipt replay must 409, got %d %v", resp.Status, resp.BodyString())
 	}

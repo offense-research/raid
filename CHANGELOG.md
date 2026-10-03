@@ -123,12 +123,12 @@ First engineering handoff build of the open-source MVP.
     one binary via argv[0] dispatch
   - `raid approve` Bubble Tea v2 TUI with safe terminal rendering and
     virtualized list
-  - `raidclient` Go package (CLI, TUI, Surge)
+  - `raidclient` Go package (CLI, TUI, proxies)
 - Jev (TypeSafe System One) adapter, escalation-only
   - Allowlist state sanitizer with canary scrubbing
   - Versioned question set, threshold combiner, monotonic combination,
     circuit breaker, cache keys, HTTP transport + scriptable fake
-- Assets: OpenAPI + JSON schemas, example policy and Surge requests,
+- Assets: OpenAPI + JSON schemas, example policy and proxy requests,
   provisioning skill (`skills/raid`) and provisioner (`tools/raid-provision.sh`)
 
 ### Tests

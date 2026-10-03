@@ -32,9 +32,9 @@ rules:
     effect: deny
 `
 
-const reader = `{"schema_version":1,"request_id":"r1","principal":{"subject_id":"u","agent_id":"a","session_id":"s","runtime":"cli","groups":["eng"],"trust_level":"local","revision":1},"action":{"provider":"github","operation":"github.issues.get","effect":"read"},"resource":{"type":"issue","id":"i1","environment":"staging","attributes":{}},"arguments":{},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"surge","source_version":"1","source_request_id":"r1","task_summary":"read","interactive":true}}`
+const reader = `{"schema_version":1,"request_id":"r1","principal":{"subject_id":"u","agent_id":"a","session_id":"s","runtime":"cli","groups":["eng"],"trust_level":"local","revision":1},"action":{"provider":"github","operation":"github.issues.get","effect":"read"},"resource":{"type":"issue","id":"i1","environment":"staging","attributes":{}},"arguments":{},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"proxy","source_version":"1","source_request_id":"r1","task_summary":"read","interactive":true}}`
 
-const delReq = `{"schema_version":1,"request_id":"r2","principal":{"subject_id":"u","agent_id":"a","session_id":"s","runtime":"cli","groups":["eng"],"trust_level":"local","revision":1},"action":{"provider":"github","operation":"github.repository.delete","effect":"delete"},"resource":{"type":"repo","id":"r","environment":"production","attributes":{}},"arguments":{},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"surge","source_version":"1","source_request_id":"r2","task_summary":"del","interactive":true}}`
+const delReq = `{"schema_version":1,"request_id":"r2","principal":{"subject_id":"u","agent_id":"a","session_id":"s","runtime":"cli","groups":["eng"],"trust_level":"local","revision":1},"action":{"provider":"github","operation":"github.repository.delete","effect":"delete"},"resource":{"type":"repo","id":"r","environment":"production","attributes":{}},"arguments":{},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"proxy","source_version":"1","source_request_id":"r2","task_summary":"del","interactive":true}}`
 
 func compile(t *testing.T) *policy.CompiledBundle {
 	t.Helper()

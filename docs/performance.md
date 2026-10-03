@@ -3,14 +3,14 @@
 ## Contract
 
 Measured on a 2-vCPU, 2 GiB Linux VM, release build, warmed bundle. The MVP
-promise: a normal local call completes in under one millisecond; the Surge
+promise: a normal local call completes in under one millisecond; the execution-proxy
 read path adds less than 2 ms p99.
 
 | Path | Target p50 | Target p99 | Hard timeout |
 | --- | --- | --- | --- |
 | Fixed validation only | < 25 µs | < 100 µs | 1 ms |
 | Indexed CEL evaluation | < 100 µs | < 1 ms | 5 ms |
-| Surge→Raid over unix socket | < 250 µs | < 2 ms | 10 ms |
+| proxy→Raid over unix socket | < 250 µs | < 2 ms | 10 ms |
 | Local decision + event enqueue | < 500 µs | < 3 ms | 15 ms |
 | Jev semantic evaluation | measure | < 500 ms | 650 ms |
 | TUI event propagation | < 20 ms | < 100 ms | 1 s |

@@ -7,7 +7,7 @@
 ```yaml
 apiVersion: offense.dev/raid/v1alpha1
 kind: PolicyBundle
-metadata: {name: surge-default, revision: 7}
+metadata: {name: demo-default, revision: 7}
 defaults: {effect: deny}
 rules: [ ... ]
 semantic_guard: { ... }   # optional

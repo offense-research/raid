@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "request_id": "surge:act_02J",
+  "request_id": "proxy:act_03J",
   "principal": {
     "subject_id": "usr_imran",
     "agent_id": "agt_claude",
@@ -12,31 +12,24 @@
   },
   "action": {
     "provider": "github",
-    "operation": "github.issues.add_labels",
-    "effect": "write"
+    "operation": "github.repository.delete",
+    "effect": "delete"
   },
   "resource": {
-    "type": "github.repository.issue",
-    "id": "repo:991234567:issue:184",
+    "type": "github.repository",
+    "id": "repo:991234567",
     "environment": "production",
     "attributes": {
       "repository_id": "991234567"
     }
   },
-  "arguments": {
-    "labels": {
-      "type": "list",
-      "value": [
-        {"type": "string", "value": "needs-triage"}
-      ]
-    }
-  },
+  "arguments": {},
   "context": {
     "timestamp": "2026-09-22T20:00:00Z",
-    "source_product": "surge",
+    "source_product": "proxy",
     "source_version": "0.1.0",
-    "source_request_id": "act_02J",
-    "task_summary": "Summarize and triage open issues",
+    "source_request_id": "act_03J",
+    "task_summary": "delete repository",
     "interactive": true
   }
 }
