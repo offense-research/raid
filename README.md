@@ -69,6 +69,49 @@ without making developers wait on routine work.
 - **Not vendor-locked** — a local Unix-socket service any agent or execution
   proxy can call (see `integrations/`).
 
+## Quickstart
+
+Three steps to a guarded agent.
+
+**1. Install Raid** - puts `raid` (CLI) and `raidd` (daemon) on your PATH:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/offense-research/raid/main/install.sh | sh
+```
+
+**2. Start Raid** - single engineer: self-approval and deny-first defaults:
+
+```sh
+raidd --solo &
+export RAID_SOCKET="${XDG_STATE_HOME:-$HOME/.local/state}/offense/raid/raid.sock"
+raid doctor        # confirms the daemon is up and a policy is active
+```
+
+**3. Point your coding agent at it.** Most people use Claude Code or Codex CLI:
+
+```sh
+git clone https://github.com/offense-research/raid && cd raid
+```
+
+Claude Code - pre-tool-call hook plus an MCP guardrail:
+
+```sh
+( cd integrations/claude-code && RAID_SOLO=1 RAID_ENV=development ./install.sh )
+```
+
+Codex CLI - MCP guardrail plus the `raid-exec` shim for shell commands:
+
+```sh
+./integrations/codex/install.sh --write-config
+```
+
+That is the whole setup. Routine actions pass straight through; anything
+consequential pauses for a one-key approval, and `raid log` shows what your
+agent did.
+
+Teams (multi-approver quorum), Cursor, VS Code, Windsurf, Aider, and the full
+CLI reference are covered below.
+
 ## Install
 
 One-line install (downloads the release binary for your OS/arch, verifies its
