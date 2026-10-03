@@ -4,6 +4,8 @@
 [![CI](https://github.com/offense-research/raid/actions/workflows/ci.yml/badge.svg)](https://github.com/offense-research/raid/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/offense-research/raid)](https://goreportcard.com/report/github.com/offense-research/raid)
 [![Release](https://img.shields.io/github/v/release/offense-research/raid?sort=semver)](https://github.com/offense-research/raid/releases)
+[![codecov](https://codecov.io/gh/offense-research/raid/branch/main/graph/badge.svg)](https://codecov.io/gh/offense-research/raid)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/offense-research/raid/badge)](https://securityscorecards.dev/viewer/?uri=github.com/offense-research/raid)
 [![Go](https://img.shields.io/badge/Go-1.26+-blue)](go.mod)
 
 Raid is a fast, agent-native **policy and approval engine**. An agent (or
@@ -51,9 +53,32 @@ without making developers wait on routine work.
   failures all yield `deny` or the configured escalation, never a silent
   allow.
 
-## Build
+## What Raid is not
 
-Requires Go 1.26+.
+- **Not a sandbox** — it decides whether an action may run; it does not isolate
+  the process. Pair it with OS-level sandboxing.
+- **Not an LLM judge** — the decision is deterministic policy; a model is never
+  the arbiter of authority.
+- **Not a secrets manager or credential broker** — it gates actions, not the
+  credentials an agent holds.
+- **Not vendor-locked** — a local Unix-socket service any agent or execution
+  proxy can call (see `integrations/`).
+
+## Install
+
+Prebuilt binaries for **linux** and **macOS** (amd64/arm64) are attached to each
+[release](https://github.com/offense-research/raid/releases). Or install from
+source with [Go 1.26+](https://go.dev/dl/):
+
+```sh
+go install github.com/offense-research/raid@latest   # installs `raid`
+ln -sf "$(go env GOPATH)/bin/raid" "$(go env GOPATH)/bin/raidd"   # daemon entry
+```
+
+`raid` and `raidd` are the same binary; `raidd` selects server mode by its
+argv[0] name.
+
+Building from a checkout gives you both in the working tree:
 
 ```sh
 make            # builds ./raid and ./raidd (raidd is a symlink)
@@ -219,7 +244,7 @@ at-most-once consumption are exercised end-to-end in
 
 Single Go module (`github.com/offense-research/raid`):
 
-- `main/` — unified entry point (`raidd` dispatch by argv[0])
+- `main.go` — unified entry point (`raidd` dispatch by argv[0])
 - `core/canonical` — strict JSON decoder, deterministic CBOR, request hash
 - `core/policy` — schema, loader, CEL compiler, index, evaluator, diff, presets
 - `core/decision` — engine, effect combination, semantic combine

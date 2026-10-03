@@ -37,7 +37,7 @@ require curl
 
 log "1/4 build (single binary: raid + raidd)"
 cd "$REPO"
-env -u GOMOD go build -o raid ./main
+env -u GOMOD go build -o raid .
 [ -e raidd ] || ln -sf raid raidd
 
 log "2/4 prepare deployment directory"

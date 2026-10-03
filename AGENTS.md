@@ -36,7 +36,7 @@ ranges, backtick free-form literals. The "go" binary is managed via mise
 Required commands (see `Makefile`):
 
 ```sh
-make            # go build -o raid ./main && ln -sf raid raidd
+make            # go build -o raid . && ln -sf raid raidd
 make test       # go test -count=1 ./core/canonical ./core/policy ./core/decision
                 #   ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./pkg/raidclient
 make bench      # go test -bench=Benchmark -benchmem -v ./core/bench
@@ -48,7 +48,7 @@ provisioning smoke (`tools/raid-provision.sh` + `./raid doctor`) → bench job.
 It caches deps via `go.sum`. Go version pinned `1.26.x`.
 
 `raidd` and `raid` are the **same binary**, dispatched by `argv[0]` basename
-(`main/main.go`). `raidd` is a symlink; renaming/hardlinking selects the
+(`main.go`). `raidd` is a symlink; renaming/hardlinking selects the
 daemon mode.
 
 ## Architecture and control/data flow

@@ -3,7 +3,7 @@
 GO ?= go
 
 all:
-	$(GO) build -o raid ./main
+	$(GO) build -o raid .
 	ln -sf raid raidd
 
 .PHONY: all test bench fmt vet lint clean install run-demo

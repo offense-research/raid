@@ -37,12 +37,19 @@ jobs:
 
       - name: Build
         run: |
-          go build -o raid ./main
+          go build -o raid .
           ln -sf raid raidd
           ./raid version
 
       - name: Unit + integration tests
-        run: go test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./core/cli ./pkg/raidclient
+        run: go test -count=1 -coverprofile=coverage.out -covermode=atomic ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./core/cli ./pkg/raidclient
+
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.out
+          fail_ci_if_error: false
 
       - name: Provisioning smoke (fresh deploy + demo)
         run: |

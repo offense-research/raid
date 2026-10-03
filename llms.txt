@@ -1,7 +1,7 @@
 # llms.txt — instructions for AI coding agents
 
 Raid is a Go policy and approval engine (daemon `raidd` + CLI `raid`) with a
-single-binary build (`go build -o raid ./main; ln -sf raid raidd`) and a
+single-binary build (`go build -o raid .; ln -sf raid raidd`) and a
 committed `go.sum` for hermetic module resolution. There is no `internal/`
 tree: Go reserves that name, so implementation lives under `core/`.
 

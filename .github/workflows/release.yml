@@ -38,14 +38,14 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build -trimpath -ldflags "-s -w" -o "raid_${GOOS}_${GOARCH}" ./main
+        run: go build -trimpath -ldflags "-s -w" -o "raid_${GOOS}_${GOARCH}" .
       - name: Build (linux/arm64)
         if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CC: aarch64-linux-gnu-gcc
-        run: go build -trimpath -ldflags "-s -w" -o "raid_${GOOS}_${GOARCH}" ./main
+        run: go build -trimpath -ldflags "-s -w" -o "raid_${GOOS}_${GOARCH}" .
       - uses: actions/upload-artifact@v7
         with:
           name: raid_${{ matrix.goos }}_${{ matrix.goarch }}

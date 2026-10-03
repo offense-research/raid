@@ -29,7 +29,7 @@ verifiable demo. Every step below is also doable by hand.
 
 ```sh
 cd <raid-repo>
-go build -o raid ./main
+go build -o raid .
 ln -sf raid raidd        # argv[0]-dispatched daemon entry
 ```
 

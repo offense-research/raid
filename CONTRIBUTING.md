@@ -19,7 +19,7 @@ Bubble Tea are modules). The test suite and benchmark suite run offline:
 ```sh
 go test            # all unit + integration suites
 go test -bench=Benchmark -benchmem -v ./core/bench
-go build -o raid ./main && ln -sf raid raidd
+go build -o raid . && ln -sf raid raidd
 ```
 
 CI runs exactly these commands. Do not add dependencies without a review:
