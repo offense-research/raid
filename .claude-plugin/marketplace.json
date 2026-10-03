@@ -1,0 +1,25 @@
+{
+  "name": "offense-research",
+  "metadata": {
+    "description": "Raid - the policy and approval engine for coding agents. Install the skill and let your agent provision a guarded local deployment.",
+    "version": "0.1.0"
+  },
+  "owner": {
+    "name": "Offense Research",
+    "url": "https://github.com/offense-research"
+  },
+  "plugins": [
+    {
+      "name": "raid",
+      "source": "./",
+      "description": "Install, provision, boot, and operate the Raid policy and approval engine (raidd daemon + raid CLI).",
+      "category": "security",
+      "tags": [
+        "policy",
+        "approval",
+        "guardrails",
+        "coding-agents"
+      ]
+    }
+  ]
+}

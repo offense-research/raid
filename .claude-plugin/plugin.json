@@ -1,0 +1,17 @@
+{
+  "name": "raid",
+  "version": "0.1.0",
+  "description": "Install, provision, boot, and operate the Raid policy and approval engine (raidd daemon + raid CLI).",
+  "author": {
+    "name": "Offense Research"
+  },
+  "homepage": "https://github.com/offense-research/raid",
+  "repository": "https://github.com/offense-research/raid",
+  "license": "Apache-2.0",
+  "keywords": [
+    "policy",
+    "approval",
+    "guardrails",
+    "coding-agents"
+  ]
+}
