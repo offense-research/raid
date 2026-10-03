@@ -66,6 +66,20 @@ without making developers wait on routine work.
 
 ## Install
 
+One-line install (downloads the release binary for your OS/arch, verifies its
+checksum, and puts `raid` + `raidd` on your PATH):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/offense-research/raid/main/install.sh | sh
+```
+
+Homebrew:
+
+```sh
+brew install --formula ./packaging/homebrew/raid.rb
+# or tap it: brew tap offense-research/raid https://github.com/offense-research/raid && brew install raid
+```
+
 Prebuilt binaries for **linux** and **macOS** (amd64/arm64) are attached to each
 [release](https://github.com/offense-research/raid/releases). Or install from
 source with [Go 1.26+](https://go.dev/dl/):
@@ -363,7 +377,7 @@ See each adapter's README for details and security invariants.
 ## Roadmap
 
 - **More agent adapters** (Codex CLI, Gemini CLI, Crush) on the shared library.
-- **Packaging:** `go install`, a Homebrew tap, and an npm/PyPI wrapper.
+- **Packaging:** an npm/PyPI wrapper.
 - **Policy simulation:** dry-run a request corpus against a candidate bundle.
 
 ## Provisioning skill
