@@ -87,22 +87,25 @@ export RAID_SOCKET="${XDG_STATE_HOME:-$HOME/.local/state}/offense/raid/raid.sock
 raid doctor        # confirms the daemon is up and a policy is active
 ```
 
-**3. Point your coding agent at it.** Most people use Claude Code or Codex CLI:
+**3. Point your coding agent at it.** Most people use Claude Code or Codex CLI.
+The adapters live in the repo, so grab a checkout first:
 
 ```sh
 git clone https://github.com/offense-research/raid && cd raid
 ```
 
+Pick the one you use; each is a single command.
+
 Claude Code - pre-tool-call hook plus an MCP guardrail:
 
 ```sh
-( cd integrations/claude-code && RAID_SOLO=1 RAID_ENV=development ./install.sh )
+RAID_SOLO=1 integrations/claude-code/install.sh
 ```
 
 Codex CLI - MCP guardrail plus the `raid-exec` shim for shell commands:
 
 ```sh
-./integrations/codex/install.sh --write-config
+integrations/codex/install.sh --write-config
 ```
 
 That is the whole setup. Routine actions pass straight through; anything
