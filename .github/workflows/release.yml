@@ -23,8 +23,8 @@ jobs:
           - { runner: macos-14, goos: darwin, goarch: amd64 }
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
           cache-dependency-path: go.sum
@@ -46,7 +46,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CC: aarch64-linux-gnu-gcc
         run: go build -trimpath -ldflags "-s -w" -o "raid_${GOOS}_${GOARCH}" ./main
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: raid_${{ matrix.goos }}_${{ matrix.goarch }}
           path: raid_*
@@ -55,8 +55,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
