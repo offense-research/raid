@@ -69,6 +69,35 @@ without making developers wait on routine work.
 - **Not vendor-locked** — a local Unix-socket service any agent or execution
   proxy can call (see `integrations/`).
 
+## Install with your agent
+
+Copy the prompt below into Claude Code, Codex, Cursor, or any other coding
+agent. It installs the Raid skill and has the agent provision a guarded local
+deployment for you:
+
+```text
+Install the Raid skill and use it for this project.
+
+If you're in Claude Code:
+    claude plugin marketplace add offense-research/raid
+    claude plugin install raid@offense-research
+In another agent:
+    npx skills add offense-research/raid --skill raid
+Use one installation method. The skill text is at
+https://github.com/offense-research/raid/blob/main/skills/raid/SKILL.md
+(raw: https://raw.githubusercontent.com/offense-research/raid/main/skills/raid/SKILL.md).
+
+Then follow the skill's provisioning section end to end: build the single
+binary, boot `raidd` (or use `./raidd --solo` for a single engineer), confirm
+`raid doctor`, and verify the demo flow (reader allowed, prod write requires
+approval and issues a signed receipt, replay rejected, destructive command
+denied) before reporting success.
+```
+
+Prefer to do it by hand? The three manual steps are below. `PROMPT.md` carries
+the same prompt plus a local-checkout fallback for private or unpublished
+clones.
+
 ## Quickstart
 
 Three steps to a guarded agent.
@@ -468,14 +497,17 @@ See each adapter's README for details and security invariants.
 ## Provisioning skill
 
 A drop-in agent skill for installing and provisioning Raid is included at
-`skills/raid/SKILL.md`
+`skills/raid/SKILL.md`. The repository is also its own Claude Code plugin
+marketplace (`.claude-plugin/marketplace.json`), so the skill installs as the
+`raid` plugin from the `offense-research` marketplace.
 
 **Paste this into any agent to install the skill** (see `PROMPT.md` for
-the unpublished-repo fallback):
+the unpublished-repo fallback, and the [Install with your agent](#install-with-your-agent)
+prompt to have the agent provision as well):
 
 > Install the Raid skill. If you're in Claude Code, run
 > `claude plugin marketplace add offense-research/raid`,
-> then `claude plugin install raid@offense-research/raid`. If you're in another
+> then `claude plugin install raid@offense-research`. If you're in another
 > agent, run `npx skills add offense-research/raid --skill raid` and select your
 > agent. Use one installation method. You can read the skill directly at
 > https://github.com/offense-research/raid/blob/main/skills/raid/SKILL.md

@@ -10,7 +10,7 @@ Install the Raid skill and use it for this project.
 
 If you're in Claude Code:
     claude plugin marketplace add offense-research/raid
-    claude plugin install raid@offense-research/raid
+    claude plugin install raid@offense-research
 In another agent:
     npx skills add offense-research/raid --skill raid
 Use one installation method. The skill text is at

@@ -8,6 +8,16 @@ First engineering handoff build of the open-source MVP.
 
 ### Added
 
+- Copy-paste agent onboarding
+  - the repository is now its own Claude Code plugin marketplace
+    (`.claude-plugin/marketplace.json` + `.claude-plugin/plugin.json`), so
+    `claude plugin marketplace add offense-research/raid` followed by
+    `claude plugin install raid@offense-research` installs the `raid` skill;
+    `npx skills add offense-research/raid --skill raid` remains the path for
+    other agents
+  - the README gained an **Install with your agent** section carrying the
+    paste-prompt, and `PROMPT.md` keeps the full version plus a local-checkout
+    fallback
 - TCP listener hardening for remote/team deployments
   - `--tcp-token` (or `RAID_TCP_TOKEN`) requires a bearer token (also accepted
     via `X-Raid-Token`, constant-time compared)
