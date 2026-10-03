@@ -185,18 +185,32 @@ permissions, `d` to draft, review the YAML, then `s` to save or `a` to activate
 
 ## Using with coding agents (Claude Code)
 
-Raid can gate a coding agent's tool calls. `integrations/claude-code/` ships a
-Claude Code `PreToolUse` hook (`hook_gate.py`) that maps each Bash/Edit/Write
-call to a normalized action and blocks on `deny`/`require_approval`, plus an
-MCP server (`raid_check`, `raid_pending`), a starter policy
-(`coding-agent.policy.yaml`), and an installer that boots raidd and writes
-`.claude/settings.json`.
+## Using with coding agents
+
+Raid can gate a coding agent's tool calls. Adapters share one normalization
+library (`integrations/lib/raidlib.py`) and speak the daemon's Unix-socket API.
+
+**Claude Code** (`integrations/claude-code/`): a `PreToolUse` hook
+(`hook_gate.py`) maps each Bash/Edit/Write call to a normalized action and
+blocks on `deny`/`require_approval`, plus an MCP server (`raid_check`,
+`raid_pending`), a starter policy (`coding-agent.policy.yaml`), and an installer
+that boots raidd and writes `.claude/settings.json`.
 
 ```sh
 cd integrations/claude-code && RAID_ENV=development ./install.sh
 ```
 
-See `integrations/claude-code/README.md` for details and security invariants.
+**Cursor** (`integrations/cursor/`): one hooks adapter for
+`beforeShellExecution`, `preToolUse`, `beforeReadFile`, and `beforeMCPExecution`
+that answers with Cursor's permission object (`require_approval` is answered as
+deny-with-instructions, so approval stays inside Raid).
+
+```sh
+# copy integrations/cursor/hooks.example.json to ~/.cursor/hooks.json and
+# point the command paths at your checkout (see integrations/cursor/README.md)
+```
+
+See each adapter's README for details and security invariants.
 
 ## Provisioning skill
 

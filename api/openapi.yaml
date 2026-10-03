@@ -53,10 +53,21 @@ paths:
       responses:
         '200':
           description: Array of approval views
-          content: {application/json: {schema: {type: array}}}
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Approval'}}
   /v1/approvals/{id}:
     get:
       summary: Read one approval
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: The approval view
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Approval'}
+        '404': {description: Not found}
   /v1/approvals/{id}/approve:
     post:
       summary: Approve the exact request (optimistic concurrency)
@@ -99,6 +110,30 @@ paths:
   /v1/keys:
     get:
       summary: Receipt issuer public key
+  /v1/journal:
+    get:
+      summary: Merged activity timeline (decisions, approvals, audit events)
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 1000, default: 50}}
+      responses:
+        '200':
+          description: Time-ordered journal entries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries: {type: array, items: {$ref: '#/components/schemas/JournalEntry'}}
+  /v1/grants:
+    get:
+      summary: List active scoped approval grants
+      responses:
+        '200':
+          description: Unexpired grants, newest first
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Grant'}}
 components:
   securitySchemes:
     approverHeader:
@@ -167,6 +202,11 @@ components:
         policy_bundle_id: {type: string}
         policy_bundle_hash: {type: string}
         matched_rule_ids: {type: array, items: {type: string}}
+        grant_id:
+          type: string
+          description: >-
+            Present when a scoped approval grant authorized this request instead
+            of a fresh approval (reason_code POLICY_GRANT_COVERED).
         approval:
           type: object
           properties:
@@ -182,6 +222,52 @@ components:
         evaluated_at: {type: string, format: date-time}
         expires_at: {type: string, format: date-time}
         evaluation_micros: {type: integer}
+    Approval:
+      type: object
+      required: [id, decision_id, request_hash, state, version, allow_scope]
+      properties:
+        id: {type: string}
+        decision_id: {type: string}
+        request_hash: {type: string}
+        principal_id: {type: string}
+        agent_id: {type: string}
+        session_id: {type: string}
+        operation: {type: string}
+        resource_type: {type: string}
+        resource_id: {type: string}
+        environment: {type: string}
+        arguments_summary:
+          type: array
+          items:
+            type: object
+            properties: {name: {type: string}, value: {type: string}}
+        matched_rule_ids: {type: array, items: {type: string}}
+        required_groups: {type: array, items: {type: string}}
+        quorum: {type: integer}
+        allow_scope: {enum: [exact_request, operation, session]}
+        state: {enum: [pending, approved, denied, expired, cancelled, consumed, superseded]}
+        version: {type: integer, format: uint64}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        resolved_at: {type: string, format: date-time}
+    Grant:
+      type: object
+      required: [id, approval_id, operation, environment, scope, expires_at]
+      properties:
+        id: {type: string}
+        approval_id: {type: string}
+        operation: {type: string}
+        environment: {type: string}
+        scope: {enum: [operation, session]}
+        expires_at: {type: string, format: date-time}
+    JournalEntry:
+      type: object
+      required: [at, kind, id, detail]
+      properties:
+        at: {type: string, format: date-time}
+        kind: {enum: [decision, approval, audit]}
+        id: {type: string}
+        detail: {type: string}
     Error:
       type: object
       required: [error]

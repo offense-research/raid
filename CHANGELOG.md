@@ -8,6 +8,25 @@ First engineering handoff build of the open-source MVP.
 
 ### Added
 
+- Real outbound HTTPS transports for `core/jev` and `core/nlpolicy`
+  - The default `netClient` now performs a real HTTPS request (bounded deadline
+    and response size) instead of a stub that always failed closed, so the
+    semantic guard and `raid policy from-language` work in a normal deployment
+  - The API key is sent only to the configured endpoint; errors stay fail-closed
+  - Injectable via `SetHttpClient`/`SetTransport`; tests use a local
+    `httptest` server, never the public network
+- Cursor coding-agent adapter (`integrations/cursor/`)
+  - One hooks adapter (`hook_gate.py`) for `beforeShellExecution`,
+    `preToolUse`, `beforeReadFile`, and `beforeMCPExecution`, answering with
+    Cursor's permission object; `require_approval` is answered as deny with the
+    approval id (never Cursor's `ask`), keeping approval inside Raid
+  - `hooks.example.json` for `.cursor/hooks.json`
+- Shared adapter library (`integrations/lib/raidlib.py`): the HTTP-over-unix
+  client and the shell-command classifier now live in one place reused by every
+  agent adapter
+- OpenAPI updated for the new surface: `/v1/journal`, `/v1/grants`, and the
+  `grant_id` (decisions) and `allow_scope` (approvals) fields, with typed
+  `Approval`/`Grant`/`JournalEntry` schemas
 - Solo mode for individual engineers (`raidd --solo`)
   - Unprivileged single-user deployment under the XDG state dir
     (`RAID_STATE_DIR`/`$XDG_STATE_HOME`), self-approval enabled, and the local

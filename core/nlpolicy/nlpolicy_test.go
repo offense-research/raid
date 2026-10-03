@@ -3,6 +3,9 @@
 package nlpolicy_test
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -172,14 +175,64 @@ func TestTranslateMalformedResponse(t *testing.T) {
 }
 
 func TestDefaultTransportFailsClosed(t *testing.T) {
-	// With no transport installed, translation fails closed instead of
-	// leaking a key to an unverified transport.
-	_, terr := nlpolicy.Translate(nil, nlpolicy.TranslateOptions{ApiKey: "k"}, `reads`)
+	// With no transport injected, the default client performs a real HTTPS
+	// request. When that request fails, translation fails closed rather than
+	// returning a draft or surfacing the key anywhere.
+	_, terr := nlpolicy.Translate(nil, nlpolicy.TranslateOptions{
+		ApiKey:     "sk-secret-leak-canary",
+		Endpoint:   "https://127.0.0.1:1/", // closed port: immediate refusal
+		DeadlineNs: 2_000_000_000,
+	}, `reads`)
 	if terr == nil {
-		t.Errorf("expected no-transport failure")
+		t.Fatalf("expected fail-closed error when the endpoint is unreachable")
 	}
-	if !strings.Contains(terr.Error(), "transport") {
-		t.Errorf("unhelpful no-transport message: %v", terr.Error())
+	if strings.Contains(terr.Error(), "sk-secret-leak-canary") {
+		t.Errorf("transport error must not leak the api key: %v", terr.Error())
+	}
+}
+
+// The default client is a real network transport, not a fail-always stub.
+func TestDefaultTransportIsReal(t *testing.T) {
+	// An invalid URL must fail at request construction, proving the default
+	// client talks to net/http rather than short-circuiting.
+	_, terr := nlpolicy.Translate(nil, nlpolicy.TranslateOptions{
+		ApiKey:   "k",
+		Endpoint: "::not-a-url::",
+	}, `reads`)
+	if terr == nil {
+		t.Fatalf("expected an error for an invalid endpoint")
+	}
+	if !strings.Contains(terr.Error(), "request") {
+		t.Errorf("expected a request-construction error, got: %v", terr.Error())
+	}
+}
+
+func TestDefaultTransportSendsRealRequest(t *testing.T) {
+	var gotAuth, gotBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"choices":[{"message":{"role":"assistant","content":"kind: PolicyBundle"}}]}`)
+	}))
+	defer srv.Close()
+
+	out, terr := nlpolicy.Translate(nil, nlpolicy.TranslateOptions{
+		ApiKey:   "sk-test",
+		Endpoint: srv.URL,
+	}, `only allow issue reads`)
+	if terr != nil {
+		t.Fatalf("translate: %v", terr.Error())
+	}
+	if out != "kind: PolicyBundle" {
+		t.Errorf("unexpected policy: %q", out)
+	}
+	if gotAuth != "Bearer sk-test" {
+		t.Errorf("authorization header: %q", gotAuth)
+	}
+	if !strings.Contains(gotBody, "messages") || !strings.Contains(gotBody, "issue reads") {
+		t.Errorf("chat body not sent: %q", gotBody)
 	}
 }
 

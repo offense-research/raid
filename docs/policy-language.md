@@ -135,6 +135,8 @@ activates (`--activate`) the draft if it validates and compiles.
 The model is an authoring aid, not an authority: a draft can never grant or
 loosen beyond what passes the deterministic compiler, and a failing draft is
 discarded with the error reported. The key is read from `OPENROUTER_API_KEY`
-or `--key`; `--model` overrides the model. Like Jev (`docs/jev.md`), outbound
-HTTPS delivery of the request is wired by the deployment; absent that, the
-command fails closed with a clear error and never activates anything.
+or `--key`; `--model` overrides the model. The default transport performs a real
+HTTPS request to the endpoint (OpenRouter by default) with a bounded deadline
+and response size, fails closed on any error, and sends the key only to that
+endpoint. A deployment can swap the transport via `nlpolicy.SetTransport`
+(`docs/jev.md` describes the analogous Jev seam).

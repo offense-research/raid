@@ -173,10 +173,23 @@ Use `./raid doctor` to verify daemon readiness.
   additions: endpoints `/v1/journal` and `/v1/grants`; the `decisions` JSON may
   now carry `grant_id`, and the `approvals` JSON now carries `allow_scope`.
 
-## Coding-agent integration (Claude Code)
+## Coding-agent integrations
 
-`integrations/claude-code/` lets Raid gate a coding agent's tool calls
-(no Go code involved — it's stdlib Python + the raidd Unix-socket HTTP API):
+`integrations/` lets Raid gate a coding agent's tool calls (no Go code
+involved — it's stdlib Python + the raidd Unix-socket HTTP API). A shared
+library lives in `integrations/lib/`; each agent gets a thin adapter.
+
+### Shared library
+
+- `integrations/lib/raidlib.py` — the `Raid` HTTP-over-`AF_UNIX` client
+  (`http.client.HTTPConnection` subclass) + `tool_to_action()` /
+  `analyze_bash()` classifier. Bash/Write/Read map to `shell.read|write|delete`,
+  `git.force_push`, `container.exec`, `package.install`, … and compound shell
+  commands also emit `destructive` / `exfil` / `protected_branch` / `branch` /
+  `verb` / `target` / `command` attributes for policy to match precisely.
+  Adapters add `integrations/lib` to `sys.path`.
+
+### Claude Code (`integrations/claude-code/`)
 
 - `hook_gate.py` — a Claude Code `PreToolUse` hook adapter: maps a tool call to
   a normalized action, asks raidd, and blocks on `deny`/`require_approval` or
@@ -184,14 +197,20 @@ Use `./raid doctor` to verify daemon readiness.
 - `mcp_server.py` — a stdio MCP server (`raid_check`, `raid_pending`), Stdlib
   JSON-RPC, no SDK. `_check` builds the action directly with the caller's
   operation slug (`_typed` values) rather than reclassifying.
-- `raidlib.py` — shared `Raid` HTTP-over-`AF_UNIX` client
-  (`http.client.HTTPConnection` subclass) + `tool_to_action()` regex
-  classifier (Bash/Write/Read → `shell.read|write|delete`, `git.force_push`,
-  `container.exec`, `package.install`, …).
 - `coding-agent.policy.yaml` — starter policy (reads allowed; dev writes OK,
-  prod writes / deletes / force-push / exec always `require_approval`).
+  prod writes / deletes / force-push / exec always `require_approval`; the
+  `destructive`/`exfil` guardrail is denied outright).
 - `install.sh` — provisions/boots raidd, activates the policy, writes
-  `.claude/settings.json`.
+  `.claude/settings.json`. `RAID_SOLO=1` boots a solo daemon instead.
+
+### Cursor (`integrations/cursor/`)
+
+- `hook_gate.py` — Cursor hooks adapter, one script for `beforeShellExecution`,
+  `preToolUse`, `beforeReadFile`, and `beforeMCPExecution`. Answers with
+  Cursor's permission object. `require_approval` is answered as **deny with the
+  approval id**, never Cursor's `ask`, so approval stays inside Raid and keeps a
+  receipt. `hooks.example.json` shows `.cursor/hooks.json`.
+- Cursor MCP reuses `integrations/claude-code/mcp_server.py`.
 
 Key gotcha: the `require_approval` verdict cannot block while awaiting a human
 (hooks time out), so the hook declines the call and the human approves
@@ -211,8 +230,10 @@ agent (separation of duty).
 - `[]byte` does not support `+`; concatenate byte slices with `slices.Concat`
   or build via `strings.Builder` (`nlpolicy_test.go` `okResponse`).
 - Outbound HTTPS is an injected concern: `core/jev` and `core/nlpolicy` ship a
-  fail-closed `netClient` stub behind a `SetTransport`-style seam. Real
-  delivery is wired by deployments; a test uses a scripted transport instead.
+  real `netClient` (bounded deadline + response size) behind a
+  `SetTransport`/`SetHttpClient` seam. It fails closed on any transport error,
+  and the API key is only sent to the configured endpoint. Tests inject a
+  scripted transport or a local `httptest` server, never the public network.
 - Import visibility is by case: leading-uppercase identifiers (functions,
   types, struct fields, methods) are public/exported; leading-lowercase are
   module-private. Use capitalized exported helpers (e.g. `nlpolicy.NewModel`)

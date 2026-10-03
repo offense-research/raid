@@ -9,9 +9,14 @@
 package nlpolicy
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"io"
+	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"offense.dev/raid/core/canonical"
 )
@@ -118,13 +123,40 @@ var globalTransport Transport
 // SetTransport installs a transport (defaults to the network client).
 func SetTransport(t Transport) () { globalTransport = t }
 
-// netClient is the default transport. Following core/jev, real HTTPS delivery
-// is wired through net/https by deployments; by default it fails fast and
-// closed rather than sending a key to an unverified transport.
+// netClient is the default transport: a real HTTPS POST to the configured
+// endpoint (OpenRouter by default), with a bounded deadline and response size.
+// It fails closed on any transport or read failure; the API key is only ever
+// sent to the endpoint the caller selected.
 type netClient struct{}
 
+// maxTransportBytes caps an OpenRouter response body read (defensive).
+const maxTransportBytes = int64(4 << 20)
+
 func (n *netClient) PostJSON(url, apiKey string, body []byte, deadlineNs int64) (int, []byte, error) {
-	return 0, nil, errors.New("raid: no openrouter transport configured")
+	if deadlineNs <= 0 {
+		deadlineNs = DefaultDeadlineNs
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(deadlineNs))
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return 0, nil, errors.New("raid: openrouter request: " + err.Error())
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Title", "Raid")
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, nil, errors.New("raid: openrouter transport: " + err.Error())
+	}
+	defer resp.Body.Close()
+	data, rerr := io.ReadAll(io.LimitReader(resp.Body, maxTransportBytes))
+	if rerr != nil {
+		return 0, nil, errors.New("raid: openrouter read: " + rerr.Error())
+	}
+	return resp.StatusCode, data, nil
 }
 
 // Translate drafts policy YAML for a permissions statement. The returned text

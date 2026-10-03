@@ -3,6 +3,9 @@ package jev_test
 
 import (
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -230,5 +233,35 @@ func TestJ12CacheKeyMissOnChange(t *testing.T) {
 	key3 := jev.CacheKey("state-a", "agent-action-risk-v1", "jev-1.13.0", th.Hash())
 	if !canonical.RequestHashEquals(key1, key3) {
 		t.Errorf("identical inputs must share a cache key")
+	}
+}
+
+// The HTTP evaluator's default transport performs a real request with the
+// bearer key, and decodes the System One answers schema.
+func TestHTTPEvaluatorRealTransport(t *testing.T) {
+	var gotAuth string
+	var gotBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"model":"jev-1.13.0","answers":{"a":{"choice":"yes","probability":0.9}}}`)
+	}))
+	defer srv.Close()
+
+	e := jev.NewHttpEvaluator(srv.URL, "sk-jev", "jev-1.13.0", 1_000_000_000)
+	res, err := e.Evaluate(jev.SemanticInput{State: `{"op":"shell.delete"}`, Ceiling: "require_approval"})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if res == nil || res.Answers == "" {
+		t.Fatalf("expected decoded answers, got %+v", res)
+	}
+	if gotAuth != "Bearer sk-jev" {
+		t.Errorf("authorization header: %q", gotAuth)
+	}
+	if !strings.Contains(gotBody, "actuals") && !strings.Contains(gotBody, "state") && gotBody == "" {
+		t.Errorf("request body not sent: %q", gotBody)
 	}
 }

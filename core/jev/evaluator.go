@@ -2,7 +2,11 @@
 package jev
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"io"
+	"net/http"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -247,13 +251,39 @@ func (c *CircuitBreaker) IsOpen(now time.Time) bool {
 	return true
 }
 
-// netClient is the default network transport.
+// netClient is the default network transport: a real HTTPS POST with a bounded
+// deadline and response size. It fails closed (returns an error) on any
+// transport or read failure so the caller applies the configured failure
+// effect; the API key is only ever sent to the configured endpoint.
 type netClient struct{}
 
+// maxTransportBytes caps a Jev response body read (defensive).
+const maxTransportBytes = int64(4 << 20)
+
 func (n *netClient) PostJSON(url, apiKey string, body []byte, deadlineNs int64) (int, []byte, error) {
-	// Real HTTPS delivery is wired through net/https in hosted deployments;
-	// without a configured transport the evaluator fails fast and closed.
-	return 0, nil, errors.New("raid: no jev transport configured")
+	if deadlineNs <= 0 {
+		deadlineNs = 650 * int64(time.Millisecond)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(deadlineNs))
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return 0, nil, errors.New("raid: jev request: " + err.Error())
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, nil, errors.New("raid: jev transport: " + err.Error())
+	}
+	defer resp.Body.Close()
+	data, rerr := io.ReadAll(io.LimitReader(resp.Body, maxTransportBytes))
+	if rerr != nil {
+		return 0, nil, errors.New("raid: jev read: " + rerr.Error())
+	}
+	return resp.StatusCode, data, nil
 }
 
 // SemanticExecutor applies the spec 7.6 escalation strategy on top of a

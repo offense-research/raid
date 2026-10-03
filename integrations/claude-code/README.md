@@ -157,7 +157,8 @@ To follow the outcome from the CLI:
 
 ## Files
 
-- `raidlib.py` — raidd HTTP-over-unix client + tool→action classifier (shared).
+- `../lib/raidlib.py` — raidd HTTP-over-unix client + tool→action classifier
+  (shared by every agent adapter).
 - `hook_gate.py` — PreToolUse hook adapter (enforces the verdict).
 - `mcp_server.py` — minimal stdio MCP server (`raid_check`, `raid_pending`).
 - `coding-agent.policy.yaml` — starter policy bundle.
