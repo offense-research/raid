@@ -49,17 +49,17 @@ type Value struct {
 	pos   int64 // source byte offset (diagnostics)
 }
 
-func Null() Value               { return Value{kind: VNull} }
-func Bool(b bool) Value         { return Value{kind: VBool, b: b} }
-func Int(i int64) Value         { return Value{kind: VInt64, i: i} }
-func Uint(u uint64) Value       { return Value{kind: VUint64, u: u} }
-func Decimal(s string) Value    { return Value{kind: VDecimal, s: s} }
-func Str(s string) Value        { return Value{kind: VString, s: s} }
-func Timestamp(s string) Value  { return Value{kind: VTimestamp, s: s} }
-func Duration(s string) Value   { return Value{kind: VDuration, s: s} }
-func Bytes(b []byte) Value      { return Value{kind: VBytes, bytes: b} }
-func List() Value               { return Value{kind: VList, arr: []Value{}} }
-func Object() Value             { return Value{kind: VObject, obj: map[string]Value{}} }
+func Null() Value              { return Value{kind: VNull} }
+func Bool(b bool) Value        { return Value{kind: VBool, b: b} }
+func Int(i int64) Value        { return Value{kind: VInt64, i: i} }
+func Uint(u uint64) Value      { return Value{kind: VUint64, u: u} }
+func Decimal(s string) Value   { return Value{kind: VDecimal, s: s} }
+func Str(s string) Value       { return Value{kind: VString, s: s} }
+func Timestamp(s string) Value { return Value{kind: VTimestamp, s: s} }
+func Duration(s string) Value  { return Value{kind: VDuration, s: s} }
+func Bytes(b []byte) Value     { return Value{kind: VBytes, bytes: b} }
+func List() Value              { return Value{kind: VList, arr: []Value{}} }
+func Object() Value            { return Value{kind: VObject, obj: map[string]Value{}} }
 
 // Kind returns the tagged kind of v.
 func (v Value) Kind() ValueKind { return v.kind }
@@ -173,9 +173,9 @@ func Decode(data []byte, opts DecodeOptions) (Value, *ParseError) {
 }
 
 type parser struct {
-	data    []byte
-	n       int
-	i       int
+	data     []byte
+	n        int
+	i        int
 	depth    int64
 	maxDepth int64
 	stack    []string
@@ -192,7 +192,7 @@ func (p *parser) peek() (byte, bool) {
 	return 0, false
 }
 
-func (p *parser) skipWs() () {
+func (p *parser) skipWs() {
 	for ; p.i < p.n; p.i++ {
 		c := p.data[p.i]
 		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
@@ -201,17 +201,17 @@ func (p *parser) skipWs() () {
 	}
 }
 
-func (p *parser) depthDown() () {
+func (p *parser) depthDown() {
 	p.depth--
 }
 
 // pathString returns the dotted JSON path of the current location.
-func (p *parser) push(k string) () {
+func (p *parser) push(k string) {
 	p.stack = append(p.stack, k)
 }
 
-func (p *parser) pop() () {
-	p.stack = p.stack[:len(p.stack) - 1]
+func (p *parser) pop() {
+	p.stack = p.stack[:len(p.stack)-1]
 }
 
 func (p *parser) path() string {
@@ -251,19 +251,19 @@ func (p *parser) parseValue() (Value, *ParseError) {
 		}
 		return Str(s), nil
 	case 't':
-		if p.n - p.i >= 4 && string(p.data[p.i:p.i + 4]) == "true" {
+		if p.n-p.i >= 4 && string(p.data[p.i:p.i+4]) == "true" {
 			p.i += 4
 			return Bool(true), nil
 		}
 		return Null(), p.fail("invalid literal", p.i)
 	case 'f':
-		if p.n - p.i >= 5 && string(p.data[p.i:p.i + 5]) == "false" {
+		if p.n-p.i >= 5 && string(p.data[p.i:p.i+5]) == "false" {
 			p.i += 5
 			return Bool(false), nil
 		}
 		return Null(), p.fail("invalid literal", p.i)
 	case 'n':
-		if p.n - p.i >= 4 && string(p.data[p.i:p.i + 4]) == "null" {
+		if p.n-p.i >= 4 && string(p.data[p.i:p.i+4]) == "null" {
 			p.i += 4
 			return Null(), nil
 		}
@@ -287,7 +287,7 @@ func (p *parser) parseObject() (Value, *ParseError) {
 		v.pos = int64(start)
 		return v, nil
 	}
-	for ; ; {
+	for {
 		p.skipWs()
 		if p.peek2() != '"' {
 			return Null(), p.fail("expected object key string", p.i)
@@ -297,7 +297,7 @@ func (p *parser) parseObject() (Value, *ParseError) {
 			return Null(), err
 		}
 		if _, dup := members[key]; dup {
-			return Null(), p.fail("duplicate object key " + key, p.i)
+			return Null(), p.fail("duplicate object key "+key, p.i)
 		}
 		p.skipWs()
 		if p.peek2() != ':' {
@@ -367,7 +367,7 @@ func (p *parser) parseString() (string, *ParseError) {
 	start := p.i
 	p.i++ // consume '"'
 	var sb strings.Builder
-	for ; ; {
+	for {
 		if p.i >= p.n {
 			return "", p.fail("unterminated string", start)
 		}
@@ -401,7 +401,7 @@ func (p *parser) parseString() (string, *ParseError) {
 			case 't':
 				sb.WriteByte('\t')
 			case 'u':
-				if p.i + 4 > p.n {
+				if p.i+4 > p.n {
 					return "", p.fail("truncated unicode escape", start)
 				}
 				hi, err := p.parseHex4()
@@ -410,26 +410,26 @@ func (p *parser) parseString() (string, *ParseError) {
 				}
 				if hi >= 0xd800 && hi <= 0xdbff {
 					// high surrogate: expect \uXXXX low surrogate
-					if p.i + 6 <= p.n && p.data[p.i] == '\\' && p.data[p.i + 1] == 'u' {
+					if p.i+6 <= p.n && p.data[p.i] == '\\' && p.data[p.i+1] == 'u' {
 						p.i += 2
 						lo, err := p.parseHex4()
 						if err != nil {
 							return "", err
 						}
 						if lo < 0xdc00 || lo > 0xdfff {
-							return "", p.fail("invalid low surrogate", p.i - 4)
+							return "", p.fail("invalid low surrogate", p.i-4)
 						}
 						sb.WriteRune(utf16.DecodeRune(rune(hi), rune(lo)))
 						continue
 					}
-					return "", p.fail("unpaired surrogate escape", p.i - 4)
+					return "", p.fail("unpaired surrogate escape", p.i-4)
 				}
 				if hi >= 0xdc00 && hi <= 0xdfff {
-					return "", p.fail("unpaired surrogate escape", p.i - 4)
+					return "", p.fail("unpaired surrogate escape", p.i-4)
 				}
 				sb.WriteRune(rune(hi))
 			default:
-				return "", p.fail("invalid escape sequence", p.i - 1)
+				return "", p.fail("invalid escape sequence", p.i-1)
 			}
 		default:
 			if c < 0x20 {
@@ -480,7 +480,7 @@ func (p *parser) parseNumber() (Value, *ParseError) {
 	if c == '0' {
 		p.i++
 	} else if c >= '1' && c <= '9' {
-		for ; ; {
+		for {
 			c, ok := p.peek()
 			if !ok || c < '0' || c > '9' {
 				break
@@ -498,7 +498,7 @@ func (p *parser) parseNumber() (Value, *ParseError) {
 		if !ok || c < '0' || c > '9' {
 			return Null(), p.fail("invalid number fraction", start)
 		}
-		for ; ; {
+		for {
 			c, ok := p.peek()
 			if !ok || c < '0' || c > '9' {
 				break
@@ -517,7 +517,7 @@ func (p *parser) parseNumber() (Value, *ParseError) {
 		if !ok || c < '0' || c > '9' {
 			return Null(), p.fail("invalid number exponent", start)
 		}
-		for ; ; {
+		for {
 			c, ok := p.peek()
 			if !ok || c < '0' || c > '9' {
 				break

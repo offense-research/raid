@@ -11,7 +11,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"offense.dev/raid/pkg/raidclient"
+	"github.com/offense-research/raid/pkg/raidclient"
 )
 
 // Model is the TUI state (spec 9.7).
@@ -152,7 +152,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor--
 			}
 		case "down", "j":
-			if m.cursor < len(m.approvals) - 1 {
+			if m.cursor < len(m.approvals)-1 {
 				m.cursor++
 			}
 		case "g", "home":
@@ -261,7 +261,7 @@ func NewApprovalView(v ApprovalView) ApprovalView { return v }
 func ZeroTime() time.Time { return time.Time{} }
 
 // AddView appends an approval view (used by tests to plant fixtures).
-func (m *Model) AddView(v ApprovalView) () {
+func (m *Model) AddView(v ApprovalView) {
 	m.approvals = append(m.approvals, v)
 }
 
@@ -295,10 +295,10 @@ func TestModel(n int) Model {
 	m.height = 40
 	for i := 0; i < n; i++ {
 		m.approvals = append(m.approvals, ApprovalView{
-			ID: "apr_" + fmt.Sprintf("%d", i), AgentID: "agent-" + fmt.Sprintf("%d", i % 10),
+			ID: "apr_" + fmt.Sprintf("%d", i), AgentID: "agent-" + fmt.Sprintf("%d", i%10),
 			Operation: "github.issues.add_labels", ResourceEnv: "production",
 			ResourceID: "repo:1:issue:" + fmt.Sprintf("%d", i),
-			SubjectID: "usr", SessionID: "ses", Reason: "rule", State: "pending",
+			SubjectID:  "usr", SessionID: "ses", Reason: "rule", State: "pending",
 			Version: 0, Summary: "labels = [needs-triage]",
 		})
 	}

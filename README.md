@@ -2,6 +2,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
 [![CI](https://github.com/offense-research/raid/actions/workflows/ci.yml/badge.svg)](https://github.com/offense-research/raid/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/offense-research/raid)](https://goreportcard.com/report/github.com/offense-research/raid)
+[![Release](https://img.shields.io/github/v/release/offense-research/raid?sort=semver)](https://github.com/offense-research/raid/releases)
 [![Go](https://img.shields.io/badge/Go-1.26+-blue)](go.mod)
 
 Raid is a fast, agent-native **policy and approval engine**. An agent (or
@@ -215,7 +217,7 @@ at-most-once consumption are exercised end-to-end in
 
 ## Layout
 
-Single Go module (`offense.dev/raid`):
+Single Go module (`github.com/offense-research/raid`):
 
 - `main/` — unified entry point (`raidd` dispatch by argv[0])
 - `core/canonical` — strict JSON decoder, deterministic CBOR, request hash

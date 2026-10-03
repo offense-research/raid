@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/policy"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/policy"
 )
 
 // surgeDefault is the spec's demonstration bundle (section 6.2), adapted for
@@ -362,6 +362,7 @@ func t_itoa(i int) string {
 	}
 	return string(b)
 }
+
 // P10: authority-widening diff detection.
 func TestP10AuthorityWideningDiff(t *testing.T) {
 	oldDoc := `
@@ -474,7 +475,7 @@ rules:
 			} else {
 				bad = true
 			}
-			if i % 1000 == 0 {
+			if i%1000 == 0 {
 				eng.Activate(hi)
 				eng.Activate(lo)
 			}
@@ -489,7 +490,7 @@ rules:
 		if d.PolicyBundleID() == "swap:2" && d.Effect() != "deny" {
 			bad = true
 		}
-		if j % 1000 == 0 {
+		if j%1000 == 0 {
 			eng.Activate(hi)
 			eng.Activate(lo)
 		}

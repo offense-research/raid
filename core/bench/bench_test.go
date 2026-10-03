@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	"offense.dev/raid/core/audit"
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/core/store"
-	"offense.dev/raid/core/tui"
+	"github.com/offense-research/raid/core/audit"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/core/store"
+	"github.com/offense-research/raid/core/tui"
 )
 
 const reqJSON = `{"schema_version":1,"request_id":"surge:act_01J","principal":{"subject_id":"usr_imran","agent_id":"agt_claude","session_id":"ses_9821","runtime":"claude-code","groups":["engineering"],"trust_level":"local-session","revision":4},"action":{"provider":"github","operation":"github.issues.get","effect":"read"},"resource":{"type":"issue","id":"repo:991234567:issue:184","environment":"staging","attributes":{"repository_id":"991234567"}},"arguments":{"labels":{"type":"list","value":[{"type":"string","value":"needs-triage"}]}},"context":{"timestamp":"2026-09-22T20:00:00Z","source_product":"surge","source_version":"0.1.0","source_request_id":"act_01J","task_summary":"read","interactive":true}}`
@@ -129,7 +129,7 @@ func BenchmarkDecisionEndToEndStrictAudit(b *testing.B) {
 	engine.Activate(compiled())
 	r := req()
 	st, _ := store.Open(store.Options{
-		Path: "file:bench-s?" + fmt.Sprintf("%d", time.Now().UnixNano()) + "?mode=memory&cache=shared",
+		Path:      "file:bench-s?" + fmt.Sprintf("%d", time.Now().UnixNano()) + "?mode=memory&cache=shared",
 		AuditMode: store.StrictAudit,
 	})
 	b.StartTimer()
@@ -150,7 +150,7 @@ func BenchmarkDecisionEndToEndBalancedAudit(b *testing.B) {
 	engine.Activate(compiled())
 	r := req()
 	st, _ := store.Open(store.Options{
-		Path: "file:bench-b?" + fmt.Sprintf("%d", time.Now().UnixNano()) + "?mode=memory&cache=shared",
+		Path:      "file:bench-b?" + fmt.Sprintf("%d", time.Now().UnixNano()) + "?mode=memory&cache=shared",
 		AuditMode: store.BalancedAudit,
 	})
 	b.StartTimer()

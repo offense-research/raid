@@ -34,7 +34,7 @@ type Options struct {
 
 // Store is a SQLite-backed repository.
 type Store struct {
-	db  *sql.DB
+	db   *sql.DB
 	mode AuditMode
 }
 

@@ -1,4 +1,4 @@
-module offense.dev/raid
+module github.com/offense-research/raid
 
 go 1.26.0
 

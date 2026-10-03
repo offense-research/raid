@@ -9,7 +9,7 @@ import (
 	"database/sql"
 	"strings"
 
-	"offense.dev/raid/core/store"
+	"github.com/offense-research/raid/core/store"
 )
 
 // Approver is the resolved, authenticated acting human.

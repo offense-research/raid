@@ -28,13 +28,13 @@ const SchemaVersion = uint32(1)
 
 // Principal identifies the requesting subject, agent session, and groups.
 type Principal struct {
-	subjectID string
-	agentID   string
-	sessionID string
-	runtime   string
-	groups    []string
+	subjectID  string
+	agentID    string
+	sessionID  string
+	runtime    string
+	groups     []string
 	trustLevel string
-	revision  uint64
+	revision   uint64
 }
 
 // Action is the normalized operation being requested.
@@ -81,41 +81,41 @@ const MaxRequestBytes = int64(1 * 1024 * 1024)
 const MaxArgumentDepth = int64(32)
 
 // --- Principal accessors ---
-func (p Principal) SubjectID() string    { return p.subjectID }
-func (p Principal) AgentID() string      { return p.agentID }
-func (p Principal) SessionID() string    { return p.sessionID }
-func (p Principal) Runtime() string      { return p.runtime }
-func (p Principal) Groups() []string     { return p.groups }
-func (p Principal) TrustLevel() string   { return p.trustLevel }
-func (p Principal) Revision() uint64     { return p.revision }
+func (p Principal) SubjectID() string  { return p.subjectID }
+func (p Principal) AgentID() string    { return p.agentID }
+func (p Principal) SessionID() string  { return p.sessionID }
+func (p Principal) Runtime() string    { return p.runtime }
+func (p Principal) Groups() []string   { return p.groups }
+func (p Principal) TrustLevel() string { return p.trustLevel }
+func (p Principal) Revision() uint64   { return p.revision }
 
 // --- Action accessors ---
-func (a Action) Provider() string     { return a.provider }
-func (a Action) Operation() string    { return a.operation }
-func (a Action) Effect() string       { return a.effect }
+func (a Action) Provider() string  { return a.provider }
+func (a Action) Operation() string { return a.operation }
+func (a Action) Effect() string    { return a.effect }
 
 // --- Resource accessors ---
-func (r Resource) Type() string                 { return r.typ }
-func (r Resource) ID() string                   { return r.id }
-func (r Resource) Environment() string          { return r.environment }
+func (r Resource) Type() string                  { return r.typ }
+func (r Resource) ID() string                    { return r.id }
+func (r Resource) Environment() string           { return r.environment }
 func (r Resource) Attributes() map[string]string { return r.attributes }
 
 // --- Context accessors ---
-func (c EvaluationContext) Timestamp() (time.Time, bool)    { return c.timestamp, c.hasTimestamp }
-func (c EvaluationContext) SourceProduct() string           { return c.sourceProduct }
-func (c EvaluationContext) SourceVersion() string           { return c.sourceVersion }
-func (c EvaluationContext) SourceRequestID() string         { return c.sourceRequestID }
-func (c EvaluationContext) TaskSummary() string             { return c.taskSummary }
-func (c EvaluationContext) Interactive() bool               { return c.interactive }
+func (c EvaluationContext) Timestamp() (time.Time, bool) { return c.timestamp, c.hasTimestamp }
+func (c EvaluationContext) SourceProduct() string        { return c.sourceProduct }
+func (c EvaluationContext) SourceVersion() string        { return c.sourceVersion }
+func (c EvaluationContext) SourceRequestID() string      { return c.sourceRequestID }
+func (c EvaluationContext) TaskSummary() string          { return c.taskSummary }
+func (c EvaluationContext) Interactive() bool            { return c.interactive }
 
 // --- Request accessors ---
-func (r *ActionRequest) SchemaVersion() uint32              { return r.schemaVersion }
-func (r *ActionRequest) RequestID() string                  { return r.requestID }
-func (r *ActionRequest) Principal() Principal               { return r.principal }
-func (r *ActionRequest) Action() Action                     { return r.action }
-func (r *ActionRequest) Resource() Resource                 { return r.resource }
+func (r *ActionRequest) SchemaVersion() uint32       { return r.schemaVersion }
+func (r *ActionRequest) RequestID() string           { return r.requestID }
+func (r *ActionRequest) Principal() Principal        { return r.principal }
+func (r *ActionRequest) Action() Action              { return r.action }
+func (r *ActionRequest) Resource() Resource          { return r.resource }
 func (r *ActionRequest) Arguments() map[string]Value { return r.arguments }
-func (r *ActionRequest) Context() EvaluationContext         { return r.context }
+func (r *ActionRequest) Context() EvaluationContext  { return r.context }
 
 // DecodeRequest strictly decodes a JSON action request document.
 // Unknown fields, malformed values, and unsupported schema versions are
@@ -269,27 +269,27 @@ func decodePrincipal(v Value) (Principal, *ParseError) {
 	for key, val := range obj {
 		switch key {
 		case "subject_id":
-			p.subjectID, err = reqString(val, "principal." + key)
+			p.subjectID, err = reqString(val, "principal."+key)
 			if err != nil {
 				return p, err
 			}
 		case "agent_id":
-			p.agentID, err = reqString(val, "principal." + key)
+			p.agentID, err = reqString(val, "principal."+key)
 			if err != nil {
 				return p, err
 			}
 		case "session_id":
-			p.sessionID, err = reqString(val, "principal." + key)
+			p.sessionID, err = reqString(val, "principal."+key)
 			if err != nil {
 				return p, err
 			}
 		case "runtime":
-			p.runtime, err = reqString(val, "principal." + key)
+			p.runtime, err = reqString(val, "principal."+key)
 			if err != nil {
 				return p, err
 			}
 		case "trust_level":
-			p.trustLevel, err = reqString(val, "principal." + key)
+			p.trustLevel, err = reqString(val, "principal."+key)
 			if err != nil {
 				return p, err
 			}
@@ -306,7 +306,7 @@ func decodePrincipal(v Value) (Principal, *ParseError) {
 			if val.Kind() != VList {
 				return p, NewError("groups must be a list of strings", "principal.groups", val.AsPos())
 			}
-gs := []string{}
+			gs := []string{}
 			for _, g := range val.AsList() {
 				if g.Kind() != VString {
 					return p, NewError("groups must be a list of strings", "principal.groups", g.AsPos())
@@ -315,7 +315,7 @@ gs := []string{}
 			}
 			p.groups = gs
 		default:
-			return p, NewError("unknown field", "principal." + key, val.AsPos())
+			return p, NewError("unknown field", "principal."+key, val.AsPos())
 		}
 	}
 	return p, nil
@@ -328,22 +328,22 @@ func decodeAction(v Value) (Action, *ParseError) {
 	for key, val := range obj {
 		switch key {
 		case "provider":
-			a.provider, err = reqString(val, "action." + key)
+			a.provider, err = reqString(val, "action."+key)
 			if err != nil {
 				return a, err
 			}
 		case "operation":
-			a.operation, err = reqString(val, "action." + key)
+			a.operation, err = reqString(val, "action."+key)
 			if err != nil {
 				return a, err
 			}
 		case "effect":
-			a.effect, err = reqString(val, "action." + key)
+			a.effect, err = reqString(val, "action."+key)
 			if err != nil {
 				return a, err
 			}
 		default:
-			return a, NewError("unknown field", "action." + key, val.AsPos())
+			return a, NewError("unknown field", "action."+key, val.AsPos())
 		}
 	}
 	return a, nil
@@ -356,17 +356,17 @@ func decodeResource(v Value) (Resource, *ParseError) {
 	for key, val := range obj {
 		switch key {
 		case "type":
-			r.typ, err = reqString(val, "resource." + key)
+			r.typ, err = reqString(val, "resource."+key)
 			if err != nil {
 				return r, err
 			}
 		case "id":
-			r.id, err = reqString(val, "resource." + key)
+			r.id, err = reqString(val, "resource."+key)
 			if err != nil {
 				return r, err
 			}
 		case "environment":
-			r.environment, err = reqString(val, "resource." + key)
+			r.environment, err = reqString(val, "resource."+key)
 			if err != nil {
 				return r, err
 			}
@@ -377,13 +377,13 @@ func decodeResource(v Value) (Resource, *ParseError) {
 			attrs := map[string]string{}
 			for k, av := range val.AsMap() {
 				if av.Kind() != VString {
-					return r, NewError("attribute values must be strings", "resource.attributes." + k, av.AsPos())
+					return r, NewError("attribute values must be strings", "resource.attributes."+k, av.AsPos())
 				}
 				attrs[k] = av.AsString()
 			}
 			r.attributes = attrs
 		default:
-			return r, NewError("unknown field", "resource." + key, val.AsPos())
+			return r, NewError("unknown field", "resource."+key, val.AsPos())
 		}
 	}
 	return r, nil
@@ -406,22 +406,22 @@ func decodeContext(v Value) (EvaluationContext, *ParseError) {
 			c.timestamp = t
 			c.hasTimestamp = true
 		case "source_product":
-			c.sourceProduct, err = reqString(val, "context." + key)
+			c.sourceProduct, err = reqString(val, "context."+key)
 			if err != nil {
 				return c, err
 			}
 		case "source_version":
-			c.sourceVersion, err = reqString(val, "context." + key)
+			c.sourceVersion, err = reqString(val, "context."+key)
 			if err != nil {
 				return c, err
 			}
 		case "source_request_id":
-			c.sourceRequestID, err = reqString(val, "context." + key)
+			c.sourceRequestID, err = reqString(val, "context."+key)
 			if err != nil {
 				return c, err
 			}
 		case "task_summary":
-			c.taskSummary, err = reqString(val, "context." + key)
+			c.taskSummary, err = reqString(val, "context."+key)
 			if err != nil {
 				return c, err
 			}
@@ -431,7 +431,7 @@ func decodeContext(v Value) (EvaluationContext, *ParseError) {
 			}
 			c.interactive = val.AsBool()
 		default:
-			return c, NewError("unknown field", "context." + key, val.AsPos())
+			return c, NewError("unknown field", "context."+key, val.AsPos())
 		}
 	}
 	return c, nil
@@ -608,7 +608,7 @@ func isValidDuration(s string) bool {
 		if c < '0' || c > '9' {
 			break
 		}
-		n = n * 10 + int(c - '0')
+		n = n*10 + int(c-'0')
 		if n > 100000000 {
 			return false
 		}

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"offense.dev/raid/core/tui"
+	"github.com/offense-research/raid/core/tui"
 )
 
 // U05: ANSI/OSC sequences and controls in untrusted fields render inert.

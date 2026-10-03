@@ -191,4 +191,3 @@ func describeRule(r *RuleSchema) string {
 	}
 	return sb.String()
 }
-

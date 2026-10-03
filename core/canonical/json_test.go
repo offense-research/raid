@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 func TestDecodeScalars(t *testing.T) {
@@ -63,19 +63,19 @@ func TestDecodeObject(t *testing.T) {
 
 func TestDecodeRejects(t *testing.T) {
 	bad := []string{
-		`{"a": 1, "a": 2}`,           // duplicate key
-		`{"a":}`,                     // missing value
-		`[1, 2`,                      // unterminated array
-		`"abc`,                       // unterminated string
-		`01`,                         // leading zero
-		`1.2.3`,                      // junk number
-		`nan`,                        // bad literal
-		`{} {}`,                      // trailing content
-		`"\u00"`,                     // truncated escape
-		`"\ud800"`,                   // unpaired surrogate
-		`"\ud800\u0041"`,             // high surrogate + non-low
-		`[1,]`,                       // trailing comma
-		`{"a" 1}`,                    // missing colon
+		`{"a": 1, "a": 2}`, // duplicate key
+		`{"a":}`,           // missing value
+		`[1, 2`,            // unterminated array
+		`"abc`,             // unterminated string
+		`01`,               // leading zero
+		`1.2.3`,            // junk number
+		`nan`,              // bad literal
+		`{} {}`,            // trailing content
+		`"\u00"`,           // truncated escape
+		`"\ud800"`,         // unpaired surrogate
+		`"\ud800\u0041"`,   // high surrogate + non-low
+		`[1,]`,             // trailing comma
+		`{"a" 1}`,          // missing colon
 		string([]byte{0x7b, 0x22, 0x61, 0x22, 0x3a, 0x22, 0xc3, 0x28, 0x22, 0x7d}), // bad UTF-8
 	}
 	for _, b := range bad {

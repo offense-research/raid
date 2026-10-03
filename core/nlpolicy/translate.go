@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // DefaultEndpoint is OpenRouter's OpenAI-compatible chat completions endpoint.
@@ -121,7 +121,7 @@ type Transport interface {
 var globalTransport Transport
 
 // SetTransport installs a transport (defaults to the network client).
-func SetTransport(t Transport) () { globalTransport = t }
+func SetTransport(t Transport) { globalTransport = t }
 
 // netClient is the default transport: a real HTTPS POST to the configured
 // endpoint (OpenRouter by default), with a bounded deadline and response size.

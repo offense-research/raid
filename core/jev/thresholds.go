@@ -6,25 +6,23 @@ import (
 	"strconv"
 	"strings"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
-
-
 
 // Answer is one typed judgment response.
 type Answer struct {
 	Choice string
-	Score  float64   // 0..1 normalized
+	Score  float64 // 0..1 normalized
 	Valid  bool
 }
 
 // SemanticResult is the outcome of a Jev evaluation.
 type SemanticResult struct {
-	Escalation string // "" | require_approval | deny
-	Model      string
+	Escalation  string // "" | require_approval | deny
+	Model       string
 	QuestionSet string
-	LatencyMs  int64
-	Answers    string // compact JSON evidence (sanitized)
+	LatencyMs   int64
+	Answers     string // compact JSON evidence (sanitized)
 }
 
 func (r *SemanticResult) EscalationEffect() string { return r.Escalation }
@@ -164,4 +162,3 @@ func esJ(sb *strings.Builder, s string) {
 	}
 	sb.WriteByte('"')
 }
-

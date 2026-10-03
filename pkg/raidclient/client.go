@@ -108,7 +108,7 @@ func (c *Client) request(method, path, body, approver string, headers map[string
 			return nil, &ClientError{msg: "read failed: " + err.Error()}
 		}
 		raw = slices.Concat(raw, buf[:n])
-		if len(raw) > 4 * 1024 * 1024 {
+		if len(raw) > 4*1024*1024 {
 			return nil, &ClientError{msg: "response too large"}
 		}
 	}
@@ -144,7 +144,7 @@ func parseStatus(raw []byte) (int, []byte, error) {
 	bodyStart := hdrEnd + 4
 	cl := contentLengthOf(raw[:hdrEnd])
 	if cl >= 0 {
-		return int(code), raw[bodyStart:bodyStart + int(cl)], nil
+		return int(code), raw[bodyStart : bodyStart+int(cl)], nil
 	}
 	return int(code), raw[bodyStart:], nil
 }
@@ -158,7 +158,7 @@ func splitBody(raw []byte) ([]byte, []byte, bool) {
 	if cl < 0 {
 		return nil, raw[hdrEnd+4:], true
 	}
-	return raw[:hdrEnd+4], raw[hdrEnd+4:hdrEnd+4+int(cl)], true
+	return raw[:hdrEnd+4], raw[hdrEnd+4 : hdrEnd+4+int(cl)], true
 }
 
 func contentLengthOf(head []byte) int64 {
@@ -184,13 +184,13 @@ func parseNum(s string) (int64, bool) {
 		if c < '0' || c > '9' {
 			return 0, false
 		}
-		n = n * 10 + int64(c - '0')
+		n = n*10 + int64(c-'0')
 	}
 	return n, true
 }
 
 func bytesIndex(hay, needle []byte) int {
-	for i := 0; i + len(needle) <= len(hay); i++ {
+	for i := 0; i+len(needle) <= len(hay); i++ {
 		ok := true
 		for j := 0; j < len(needle); j++ {
 			if hay[i+j] != needle[j] {

@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/pkg/raidclient"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/pkg/raidclient"
 )
 
 func cmdReceipt(args []string) int {

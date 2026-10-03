@@ -21,7 +21,6 @@ import (
 // HashSize is the request-hash byte length (SHA-256).
 const HashSize = 32
 
-
 // Content kinds provide drift protection for the hash stream.
 const (
 	HKRequest   = uint64(1)
@@ -135,8 +134,6 @@ func RequestHashEquals(a, b []byte) bool {
 
 // ConcatBytes is a short alias for byte-slice concatenation.
 func ConcatBytes(a, b []byte) []byte { return slices.Concat(a, b) }
-
-
 
 // sortedPair mirrors the CBOR key sorting requirement for arguments.
 type sortedPair struct {

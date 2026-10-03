@@ -12,7 +12,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"offense.dev/raid/core/api"
+	"github.com/offense-research/raid/core/api"
 )
 
 func openAPIPaths(t *testing.T) []string {

@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a defect in raidd, the raid CLI, or an integration
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Do not** include secrets, API keys, or
+        approval payloads. For security issues, use the private advisory flow
+        in SECURITY.md instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands, request JSON, and the policy bundle if relevant.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - decision / policy (CEL)
+        - approvals / receipts
+        - CLI / TUI
+        - coding-agent integration
+        - daemon / storage
+        - docs
+        - other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Output of `raid version`, or the commit SHA.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Go version, and whether you ran `--solo` or a system deployment.
+    validations:
+      required: false

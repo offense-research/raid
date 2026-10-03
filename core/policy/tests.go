@@ -4,7 +4,7 @@ package policy
 import (
 	"fmt"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // runTest executes one embedded test against the freshly compiled bundle.

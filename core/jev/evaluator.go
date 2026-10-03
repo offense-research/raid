@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // SemanticInput is the allowlisted input to the evaluator.
@@ -69,9 +69,9 @@ func (f *fakeEvaluator) Evaluate(in SemanticInput) (*SemanticResult, error) {
 	esc := f.thresholds.DecideEscalation(f.answers, in.Ceiling)
 	return &SemanticResult{
 		Escalation: esc,
-		Model: f.model, QuestionSet: QuestionSet,
+		Model:      f.model, QuestionSet: QuestionSet,
 		LatencyMs: 4,
-		Answers:  EvidenceJSON(f.answers),
+		Answers:   EvidenceJSON(f.answers),
 	}, nil
 }
 
@@ -83,9 +83,9 @@ func (f *fakeEvaluator) Evaluate(in SemanticInput) (*SemanticResult, error) {
 // for the hosted deployment.
 
 type httpEvaluator struct {
-	endpoint string
-	apiKey   string
-	model    string
+	endpoint   string
+	apiKey     string
+	model      string
 	deadlineNs int64
 }
 
@@ -108,7 +108,7 @@ type HttpClient interface {
 var globalClient HttpClient
 
 // SetHttpClient installs a transport (defaults to the network client).
-func SetHttpClient(c HttpClient) () { globalClient = c }
+func SetHttpClient(c HttpClient) { globalClient = c }
 
 func (f *httpEvaluator) Evaluate(in SemanticInput) (*SemanticResult, error) {
 	body := BodyForRequest(in.State)
@@ -198,9 +198,9 @@ const (
 )
 
 type CircuitBreaker struct {
-	failures atomic.Value
-	state    atomic.Value
-	openedAt atomic.Value
+	failures  atomic.Value
+	state     atomic.Value
+	openedAt  atomic.Value
 	threshold int64
 }
 
@@ -226,7 +226,7 @@ func (c *CircuitBreaker) RecordFailure(now time.Time) bool {
 }
 
 // RecordSuccess resets the breaker.
-func (c *CircuitBreaker) RecordSuccess() () {
+func (c *CircuitBreaker) RecordSuccess() {
 	c.failures.Store(int64(0))
 	c.state.Store(int64(CircuitClosed))
 }
@@ -244,7 +244,7 @@ func (c *CircuitBreaker) IsOpen(now time.Time) bool {
 	if v := c.openedAt.Load(); v != nil {
 		opened, _ = v.(int64)
 	}
-	if now.UnixNano() - opened > 30_000_000_000 {
+	if now.UnixNano()-opened > 30_000_000_000 {
 		c.state.Store(int64(CircuitHalf))
 		return false
 	}

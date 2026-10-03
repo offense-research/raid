@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // Classification of request fields for Jev state building.
@@ -158,7 +158,7 @@ func argValueText(v canonical.Value) string {
 	return sb.String()
 }
 
-func argValueInto(sb *strings.Builder, v canonical.Value, depth int) () {
+func argValueInto(sb *strings.Builder, v canonical.Value, depth int) {
 	if depth > 2 {
 		sb.WriteString("…")
 		return
@@ -184,7 +184,7 @@ func argValueInto(sb *strings.Builder, v canonical.Value, depth int) () {
 			if i > 0 {
 				sb.WriteByte(',')
 			}
-			argValueInto(sb, item, depth + 1)
+			argValueInto(sb, item, depth+1)
 		}
 		sb.WriteByte(']')
 	case canonical.VObject:
@@ -196,7 +196,7 @@ func argValueInto(sb *strings.Builder, v canonical.Value, depth int) () {
 			}
 			first = false
 			sb.WriteString(k + "=")
-			argValueInto(sb, item, depth + 1)
+			argValueInto(sb, item, depth+1)
 		}
 		sb.WriteByte('}')
 	}

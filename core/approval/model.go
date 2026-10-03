@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/signing"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/signing"
 )
 
 // State is an approval lifecycle state.
@@ -68,31 +68,31 @@ type Approval struct {
 	resolvedAt       *time.Time
 }
 
-func (a *Approval) ID() string               { return a.id }
-func (a *Approval) DecisionID() string       { return a.decisionID }
-func (a *Approval) RequestHash() []byte      { return a.requestHash }
-func (a *Approval) PrincipalID() string      { return a.principalID }
-func (a *Approval) AgentID() string          { return a.agentID }
-func (a *Approval) SessionID() string        { return a.sessionID }
-func (a *Approval) Operation() string        { return a.operation }
-func (a *Approval) ResourceType() string     { return a.resourceType }
-func (a *Approval) ResourceID() string       { return a.resourceID }
-func (a *Approval) Environment() string      { return a.environment }
+func (a *Approval) ID() string                    { return a.id }
+func (a *Approval) DecisionID() string            { return a.decisionID }
+func (a *Approval) RequestHash() []byte           { return a.requestHash }
+func (a *Approval) PrincipalID() string           { return a.principalID }
+func (a *Approval) AgentID() string               { return a.agentID }
+func (a *Approval) SessionID() string             { return a.sessionID }
+func (a *Approval) Operation() string             { return a.operation }
+func (a *Approval) ResourceType() string          { return a.resourceType }
+func (a *Approval) ResourceID() string            { return a.resourceID }
+func (a *Approval) Environment() string           { return a.environment }
 func (a *Approval) ArgumentsSummary() []SafeField { return a.argumentsSummary }
-func (a *Approval) PolicyBundleHash() []byte { return a.policyBundleHash }
-func (a *Approval) MatchedRuleIDs() []string { return a.matchedRuleIDs }
-func (a *Approval) RequiredGroups() []string { return a.requiredGroups }
-func (a *Approval) Quorum() uint32           { return a.quorum }
-func (a *Approval) AllowScope() string       { return a.allowScope }
-func (a *Approval) Votes() int64             { return a.votes }
-func (a *Approval) State() State             { return a.state }
-func (a *Approval) Version() uint64          { return a.version }
-func (a *Approval) CreatedAt() time.Time     { return a.createdAt }
-func (a *Approval) ExpiresAt() time.Time     { return a.expiresAt }
-func (a *Approval) ResolvedAt() *time.Time   { return a.resolvedAt }
+func (a *Approval) PolicyBundleHash() []byte      { return a.policyBundleHash }
+func (a *Approval) MatchedRuleIDs() []string      { return a.matchedRuleIDs }
+func (a *Approval) RequiredGroups() []string      { return a.requiredGroups }
+func (a *Approval) Quorum() uint32                { return a.quorum }
+func (a *Approval) AllowScope() string            { return a.allowScope }
+func (a *Approval) Votes() int64                  { return a.votes }
+func (a *Approval) State() State                  { return a.state }
+func (a *Approval) Version() uint64               { return a.version }
+func (a *Approval) CreatedAt() time.Time          { return a.createdAt }
+func (a *Approval) ExpiresAt() time.Time          { return a.expiresAt }
+func (a *Approval) ResolvedAt() *time.Time        { return a.resolvedAt }
 
 // WriteJSON renders the safe approver-facing representation.
-func (a *Approval) WriteJSON(sb *strings.Builder) () {
+func (a *Approval) WriteJSON(sb *strings.Builder) {
 	sb.WriteString(`{"id":`)
 	canonical.WriteEscaped(sb, a.id)
 	sb.WriteString(`,"decision_id":`)

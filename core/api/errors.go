@@ -6,21 +6,21 @@ package api
 import (
 	"strings"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // Error codes exposed on the wire.
 const (
-	CodeInputInvalid         = "REQUEST_INVALID"
-	CodePolicyEvaluation     = "POLICY_EVALUATION_FAILED"
-	CodePolicyDenied         = "POLICY_DENIED"
-	CodeApprovalRequired     = "APPROVAL_REQUIRED"
-	CodeApprovalConflict     = "APPROVAL_CONFLICT"
-	CodeApprovalExpired      = "APPROVAL_EXPIRED"
-	CodeApprovalNotFound     = "APPROVAL_NOT_FOUND"
-	CodeUnauthorized         = "UNAUTHORIZED"
-	CodeUnavailable          = "UNAVAILABLE"
-	CodeInternal             = "INTERNAL_ERROR"
+	CodeInputInvalid     = "REQUEST_INVALID"
+	CodePolicyEvaluation = "POLICY_EVALUATION_FAILED"
+	CodePolicyDenied     = "POLICY_DENIED"
+	CodeApprovalRequired = "APPROVAL_REQUIRED"
+	CodeApprovalConflict = "APPROVAL_CONFLICT"
+	CodeApprovalExpired  = "APPROVAL_EXPIRED"
+	CodeApprovalNotFound = "APPROVAL_NOT_FOUND"
+	CodeUnauthorized     = "UNAUTHORIZED"
+	CodeUnavailable      = "UNAVAILABLE"
+	CodeInternal         = "INTERNAL_ERROR"
 )
 
 // Error is the wire error body.
@@ -32,7 +32,7 @@ type Error struct {
 }
 
 // writeJSON appends the error document.
-func (e *Error) writeJSON(sb *strings.Builder) () {
+func (e *Error) writeJSON(sb *strings.Builder) {
 	sb.WriteString(`{"error":{"code":`)
 	canonical.WriteEscaped(sb, e.Code)
 	sb.WriteString(`,"message":`)

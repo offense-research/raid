@@ -53,7 +53,7 @@ func (h *Hub) Subscribe(s Subscriber) error {
 }
 
 // Unsubscribe removes a subscriber.
-func (h *Hub) Unsubscribe(s Subscriber) () {
+func (h *Hub) Unsubscribe(s Subscriber) {
 	h.mu.Lock()
 	var out []Subscriber
 	for _, x := range h.subs {
@@ -68,7 +68,7 @@ func (h *Hub) Unsubscribe(s Subscriber) () {
 
 // Publish fans the event to subscribers, dropping failures. Delivery to a
 // subscriber must return promptly; the hub itself never blocks.
-func (h *Hub) Publish(e Event) () {
+func (h *Hub) Publish(e Event) {
 	h.mu.Lock()
 	subs := h.subs
 	h.mu.Unlock()

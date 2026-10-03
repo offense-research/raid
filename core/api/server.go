@@ -19,31 +19,31 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/approval"
-	"offense.dev/raid/core/audit"
-	"offense.dev/raid/core/authn"
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/jev"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/core/store"
-	"offense.dev/raid/core/stream"
-	"offense.dev/raid/core/util"
+	"github.com/offense-research/raid/core/approval"
+	"github.com/offense-research/raid/core/audit"
+	"github.com/offense-research/raid/core/authn"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/jev"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/core/store"
+	"github.com/offense-research/raid/core/stream"
+	"github.com/offense-research/raid/core/util"
 )
 
 // Config wires the server.
 type Config struct {
-	Engine     *decision.Engine
-	Approvals  *approval.Service
-	Store      *store.Store
-	Hub        *stream.Hub
-	Key        *signing.KeyPair
-	Approvers  *authn.ApproverStore
-	AllowUIDs  []int64
-	MaxBody    int64
+	Engine    *decision.Engine
+	Approvals *approval.Service
+	Store     *store.Store
+	Hub       *stream.Hub
+	Key       *signing.KeyPair
+	Approvers *authn.ApproverStore
+	AllowUIDs []int64
+	MaxBody   int64
 	// Evaluator is the optional semantic evaluator (nil disables Jev).
-	Evaluator  jev.SemanticEvaluator
+	Evaluator jev.SemanticEvaluator
 	// TCPToken, when set, is required as a bearer token on the TCP listener.
 	// The Unix socket is authenticated by peer UID and ignores it.
 	TCPToken string
@@ -869,7 +869,7 @@ func parseUint(v string) (uint64, bool) {
 		if c < '0' || c > '9' {
 			return 0, false
 		}
-		n = n * 10 + uint64(c - '0')
+		n = n*10 + uint64(c-'0')
 	}
 	return n, true
 }

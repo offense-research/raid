@@ -1,4 +1,3 @@
-
 // Signed receipt claims (spec 8.7).
 //
 // Claims marshal to a deterministic CBOR byte stream, and that byte stream
@@ -14,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // ReceiptTTL is the default lifetime of an approved-but-unconsumed receipt.
@@ -29,8 +28,8 @@ type Claims struct {
 	RequestHash      []byte // 32 bytes
 	PolicyBundleHash []byte // 32 bytes
 	Effect           string
-	IssuedAt         int64 // unix seconds
-	ExpiresAt        int64 // unix seconds
+	IssuedAt         int64  // unix seconds
+	ExpiresAt        int64  // unix seconds
 	Nonce            []byte // 16 bytes
 }
 
@@ -84,7 +83,7 @@ func VerifyReceipt(r *SignedReceipt, keyID string, pub []byte) bool {
 
 // WriteReceiptJSON renders the signed receipt for consumers: the JSON
 // claims, the exact signed claims bytes, the signature, and the key id.
-func (r *SignedReceipt) WriteReceiptJSON(sb *strings.Builder, claims *Claims) () {
+func (r *SignedReceipt) WriteReceiptJSON(sb *strings.Builder, claims *Claims) {
 	sb.WriteString(`{"claims":{`)
 	sb.WriteString(`"version":`)
 	sb.WriteString(strconv.FormatUint(uint64(claims.Version), 10))

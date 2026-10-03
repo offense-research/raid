@@ -12,12 +12,12 @@ import (
 
 // RuleIndex maps static match fields to candidate rule indices.
 type RuleIndex struct {
-	rules        []*CompiledRule
-	byOperation  map[string][]int64
-	byProvider   map[string][]int64
-	byEffect     map[string][]int64
+	rules         []*CompiledRule
+	byOperation   map[string][]int64
+	byProvider    map[string][]int64
+	byEffect      map[string][]int64
 	byEnvironment map[string][]int64
-	wildcard     []int64
+	wildcard      []int64
 }
 
 // BuildIndex constructs the immutable candidate index for compiled rules.
@@ -88,7 +88,7 @@ func (ix *RuleIndex) Candidates(op, provider, effectClass, environment string) [
 	seen := map[int64]bool{}
 	var out []int64
 	// deduplicated append helper via nested loop to avoid closures
-	var add func(idx int64) () = func(idx int64) () {
+	var add func(idx int64) = func(idx int64) {
 		if seen[idx] {
 			return
 		}

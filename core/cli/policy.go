@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/nlpolicy"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/pkg/raidclient"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/nlpolicy"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/pkg/raidclient"
 )
 
 func cmdPolicy(args []string) int {
@@ -118,19 +118,19 @@ func policyFromLanguage(args []string) int {
 	for i, a := range args {
 		switch a {
 		case "--statement", "-s":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				statement = args[i+1]
 			}
 		case "--key":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				key = args[i+1]
 			}
 		case "--model":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				model = args[i+1]
 			}
 		case "--out":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				outPath = args[i+1]
 			}
 		case "--activate":

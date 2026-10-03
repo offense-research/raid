@@ -13,13 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/core/store"
-	"offense.dev/raid/core/stream"
-	"offense.dev/raid/core/util"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/core/store"
+	"github.com/offense-research/raid/core/stream"
+	"github.com/offense-research/raid/core/util"
 )
 
 // Errors surfaced to the API layer.
@@ -71,14 +71,14 @@ func (s *Service) Create(d *decision.Decision, req *canonical.ActionRequest, cfg
 	expires := now.Add(time.Duration(ttlNs))
 	appr := &Approval{
 		id: util.NewID("apr"), decisionID: d.ID(),
-		requestHash: d.RequestHash(),
-		principalID: req.Principal().SubjectID(),
-		agentID:     req.Principal().AgentID(),
-		sessionID:   req.Principal().SessionID(),
-		operation:   req.Action().Operation(),
-		resourceType: req.Resource().Type(),
-		resourceID:  req.Resource().ID(),
-		environment: req.Resource().Environment(),
+		requestHash:      d.RequestHash(),
+		principalID:      req.Principal().SubjectID(),
+		agentID:          req.Principal().AgentID(),
+		sessionID:        req.Principal().SessionID(),
+		operation:        req.Action().Operation(),
+		resourceType:     req.Resource().Type(),
+		resourceID:       req.Resource().ID(),
+		environment:      req.Resource().Environment(),
 		argumentsSummary: SafeSummary(d.RequestHash(), req),
 		policyBundleHash: d.PolicyBundleHash(),
 		matchedRuleIDs:   d.MatchedRuleIDs(),
@@ -336,7 +336,7 @@ func (s *Service) Cancel(approvalID, sessionID string) error {
 func (s *Service) Get(id string) (*Approval, error) {
 	var row sqlApprovalRow
 	var resolved sql.NullInt64
-	err := s.store.QueryRow(`SELECT ` + columnList() + ` FROM approvals WHERE id = ?`, id).
+	err := s.store.QueryRow(`SELECT `+columnList()+` FROM approvals WHERE id = ?`, id).
 		Scan(&row.id, &row.decisionID, &row.requestHash, &row.principalID, &row.agentID, &row.sessionID,
 			&row.operation, &row.resourceType, &row.resourceID, &row.environment,
 			&row.argumentsSummary, &row.policyBundleHash, &row.matchedRuleIDs,
@@ -357,7 +357,7 @@ func (s *Service) Get(id string) (*Approval, error) {
 func (s *Service) ListPending() ([]*Approval, error) {
 	now := time.Now().UTC().UnixNano()
 	rows, err := s.store.Query(`
-		SELECT ` + columnList() + ` FROM approvals
+		SELECT `+columnList()+` FROM approvals
 		WHERE state = 'pending' AND expires_at_ns > ? ORDER BY created_at_ns`, now)
 	if err != nil {
 		return nil, err
@@ -457,7 +457,7 @@ func valueSummary(v canonical.Value, maxLen int) string {
 	return sanitizeSummary(s)
 }
 
-func valueSummaryInto(sb *strings.Builder, v canonical.Value, depth, maxLen int) () {
+func valueSummaryInto(sb *strings.Builder, v canonical.Value, depth, maxLen int) {
 	if sb.Len() >= maxLen {
 		return
 	}
@@ -488,7 +488,7 @@ func valueSummaryInto(sb *strings.Builder, v canonical.Value, depth, maxLen int)
 			if i > 0 {
 				sb.WriteString(", ")
 			}
-			valueSummaryInto(sb, item, depth + 1, maxLen)
+			valueSummaryInto(sb, item, depth+1, maxLen)
 		}
 		sb.WriteByte(']')
 	case canonical.VObject:
@@ -501,7 +501,7 @@ func valueSummaryInto(sb *strings.Builder, v canonical.Value, depth, maxLen int)
 			first = false
 			sb.WriteString(k)
 			sb.WriteByte('=')
-			valueSummaryInto(sb, item, depth + 1, maxLen)
+			valueSummaryInto(sb, item, depth+1, maxLen)
 		}
 		sb.WriteByte('}')
 	}

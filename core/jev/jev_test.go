@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/jev"
-	"offense.dev/raid/core/policy"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/jev"
+	"github.com/offense-research/raid/core/policy"
 )
 
 const doc = `
@@ -62,27 +62,27 @@ func base(t *testing.T, reqJSON string) *decision.Decision {
 
 func thresholds() jev.Thresholds {
 	return jev.FromConfig(map[string]float64{
-		"intent_mismatch": 0.45,
+		"intent_mismatch":     0.45,
 		"credential_exposure": 0.20,
-		"prompt_injection": 0.35,
-		"impact": 0.60,
-		"ambiguity": 2.0,
+		"prompt_injection":    0.35,
+		"impact":              0.60,
+		"ambiguity":           2.0,
 	})
 }
 
 func highRisk() map[string]jev.Answer {
 	return map[string]jev.Answer{
-		"intent_mismatch":    {Choice: "yes", Score: 0.91, Valid: true},
+		"intent_mismatch":     {Choice: "yes", Score: 0.91, Valid: true},
 		"credential_exposure": {Choice: "no", Score: 0.02, Valid: true},
-		"prompt_injection":   {Choice: "yes", Score: 0.60, Valid: true},
+		"prompt_injection":    {Choice: "yes", Score: 0.60, Valid: true},
 	}
 }
 
 func lowRisk() map[string]jev.Answer {
 	return map[string]jev.Answer{
-		"intent_mismatch":    {Choice: "no", Score: 0.05, Valid: true},
+		"intent_mismatch":     {Choice: "no", Score: 0.05, Valid: true},
 		"credential_exposure": {Choice: "no", Score: 0.01, Valid: true},
-		"prompt_injection":   {Choice: "no", Score: 0.03, Valid: true},
+		"prompt_injection":    {Choice: "no", Score: 0.03, Valid: true},
 	}
 }
 
@@ -180,7 +180,7 @@ func TestJ05FailureNeverAllows(t *testing.T) {
 // J08: secret canary is absent from state and the HTTP body.
 func TestJ08NoSecrets(t *testing.T) {
 	const canary = "tok_livesecret123456"
-	reqJSON := strings.Replace(reader, `"arguments":{}`, `"arguments":{"labels":{"type":"list","value":[{"type":"string","value":"` + canary + `"}]}}`, 1)
+	reqJSON := strings.Replace(reader, `"arguments":{}`, `"arguments":{"labels":{"type":"list","value":[{"type":"string","value":"`+canary+`"}]}}`, 1)
 	req, perr := canonical.DecodeRequest([]byte(reqJSON))
 	if perr != nil {
 		t.Fatalf("req: %v", perr.Error())

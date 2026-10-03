@@ -38,7 +38,7 @@ func Questions() []Question {
 }
 
 // WriteQuestionsJSON renders the questions map for the System One request.
-func WriteQuestionsJSON(sb *strings.Builder) () {
+func WriteQuestionsJSON(sb *strings.Builder) {
 	sb.WriteString(`{"` + QuestionSet + `":{`)
 	first := true
 	for _, q := range Questions() {
@@ -53,7 +53,7 @@ func WriteQuestionsJSON(sb *strings.Builder) () {
 			sb.WriteString(strings.Join(q.Criteria, `","`))
 			sb.WriteString(`"]`)
 		}
-		sb.WriteByte('}') 
+		sb.WriteByte('}')
 	}
 	sb.WriteString(`}}`)
 }

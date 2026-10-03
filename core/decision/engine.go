@@ -6,9 +6,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/core/util"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/core/util"
 )
 
 // Reason codes (fail-closed surface).

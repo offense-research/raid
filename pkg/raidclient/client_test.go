@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"offense.dev/raid/pkg/raidclient"
+	"github.com/offense-research/raid/pkg/raidclient"
 )
 
 // TestClientGetActive exercises the client against a running daemon. The

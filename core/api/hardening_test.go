@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"offense.dev/raid/core/approval"
+	"github.com/offense-research/raid/core/approval"
 )
 
 // Receipt status, grant revocation, and the journal kind filter, exercised

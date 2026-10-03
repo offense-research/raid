@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // BaseDecision is the deterministic outcome before any semantic guard.
@@ -17,11 +17,11 @@ type BaseDecision struct {
 	errorMsg       string
 }
 
-func (b *BaseDecision) Effect() string          { return b.effect }
-func (b *BaseDecision) ReasonCode() string      { return b.reasonCode }
-func (b *BaseDecision) MatchedRuleIDs() []string { return b.matchedRuleIDs }
+func (b *BaseDecision) Effect() string              { return b.effect }
+func (b *BaseDecision) ReasonCode() string          { return b.reasonCode }
+func (b *BaseDecision) MatchedRuleIDs() []string    { return b.matchedRuleIDs }
 func (b *BaseDecision) ApprovalRule() *CompiledRule { return b.approvalRule }
-func (b *BaseDecision) IsError() bool           { return b.effect == "error" }
+func (b *BaseDecision) IsError() bool               { return b.effect == "error" }
 
 // Rank orders effects: allow < require_approval < deny; none < allow.
 func rank(e string) int {

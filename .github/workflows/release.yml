@@ -1,0 +1,69 @@
+# Build cross-platform binaries and publish a GitHub release on a v* tag.
+#
+# The store uses a cgo SQLite driver, so each target is built on a native (or
+# cross-gcc) runner rather than with CGO disabled.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, goos: linux, goarch: amd64 }
+          - { runner: ubuntu-latest, goos: linux, goarch: arm64 }
+          - { runner: macos-14, goos: darwin, goarch: arm64 }
+          - { runner: macos-13, goos: darwin, goarch: amd64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: go.sum
+      - name: Cross toolchain (linux/arm64)
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Build
+        if: ${{ !(matrix.goos == 'linux' && matrix.goarch == 'arm64') }}
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -trimpath -ldflags "-s -w" -o "raid_${GOOS}_${GOARCH}" ./main
+      - name: Build (linux/arm64)
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CC: aarch64-linux-gnu-gcc
+        run: go build -trimpath -ldflags "-s -w" -o "raid_${GOOS}_${GOARCH}" ./main
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raid_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: raid_*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: (cd dist && sha256sum raid_* > SHA256SUMS)
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "${GITHUB_REF_NAME}" --generate-notes

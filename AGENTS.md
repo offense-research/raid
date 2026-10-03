@@ -19,7 +19,11 @@ Golang toolchain. Syntax is `var`, `func`, `type X struct`, `map[K]V`,
 ranges, backtick free-form literals. The "go" binary is managed via mise
 (`~/.local/share/mise/...`).
 
-- It is a **single module** declared in `go.mod`: `module offense.dev/raid`.
+- It is a **single module** declared in `go.mod`:
+  `module github.com/offense-research/raid`. The public **policy wire
+  `apiVersion` is independent**: it stays `offense.dev/raid/v1alpha1`
+  (`core/policy/schema.go`), so renaming the module never changes the wire
+  contract.
 - Dependency resolution is **hermetic via a committed `go.sum`**. Do **not**
   edit it, do not ignore it. If a build reports "missing go.sum entry", run
   `go get -u ./...` at the repo root, then rebuild.

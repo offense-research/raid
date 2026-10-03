@@ -1,0 +1,15 @@
+# Normalize line endings; keep the worktree LF on every platform.
+* text=auto eol=lf
+
+*.go   text diff=golang linguist-detectable
+*.md   text
+*.yml  text
+*.yaml text
+*.json text
+*.sh   text eol=lf
+*.py   text eol=lf
+
+# Binary / generated.
+*.png  binary
+*.jpg  binary
+*.seed binary

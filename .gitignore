@@ -7,5 +7,7 @@
 /obj/
 __pycache__/
 *.pyc
+# SQLite artifacts the benchmark suite generates at run time.
+core/bench/file:bench*
 # Internal strategy, not for the public (open-source) repo.
 /docs/market-and-gtm.md

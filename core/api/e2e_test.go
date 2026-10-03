@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"offense.dev/raid/core/api"
-	"offense.dev/raid/core/approval"
-	"offense.dev/raid/core/authn"
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/core/store"
-	"offense.dev/raid/core/stream"
-	"offense.dev/raid/pkg/raidclient"
+	"github.com/offense-research/raid/core/api"
+	"github.com/offense-research/raid/core/approval"
+	"github.com/offense-research/raid/core/authn"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/core/store"
+	"github.com/offense-research/raid/core/stream"
+	"github.com/offense-research/raid/pkg/raidclient"
 )
 
 const bundleYAML = `
@@ -215,11 +215,11 @@ func extractID(body, key string) string {
 	if i < 0 {
 		return ""
 	}
-	j := strings.Index(body[i + len(needle):], `"`)
+	j := strings.Index(body[i+len(needle):], `"`)
 	if j < 0 {
 		return ""
 	}
-	return body[i + len(needle):i + len(needle) + j]
+	return body[i+len(needle) : i+len(needle)+j]
 }
 
 func extractField(body, key string) string {
@@ -228,11 +228,11 @@ func extractField(body, key string) string {
 	if i < 0 {
 		return ""
 	}
-	j := strings.Index(body[i + len(needle):], `"`)
+	j := strings.Index(body[i+len(needle):], `"`)
 	if j < 0 {
 		return ""
 	}
-	return body[i + len(needle):i + len(needle) + j]
+	return body[i+len(needle) : i+len(needle)+j]
 }
 
 func extractKeyID(body string) string {

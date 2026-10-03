@@ -17,23 +17,23 @@ import (
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
 
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/pkg/raidclient"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/pkg/raidclient"
 )
 
 // Model is the TUI state.
 type Model struct {
-	key        string
-	model      string
-	statement  string
-	draft      string
-	status     string
-	focus      int  // 0 key, 1 model, 2 statement
-	editing    bool
-	showDraft  bool
-	busy       bool
-	width      int
-	height     int
+	key       string
+	model     string
+	statement string
+	draft     string
+	status    string
+	focus     int // 0 key, 1 model, 2 statement
+	editing   bool
+	showDraft bool
+	busy      bool
+	width     int
+	height    int
 }
 
 // --- messages ---
@@ -112,7 +112,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case DraftMsg:
 		m.busy = false
 		if msg.Err != "" {
-			m.status = paint("✗ draft failed: " + msg.Err, colorErr, false)
+			m.status = paint("✗ draft failed: "+msg.Err, colorErr, false)
 			return m, nil
 		}
 		m.draft = msg.YAML
@@ -123,16 +123,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case SaveMsg:
 		if msg.OK {
-			m.status = paint("✔ saved " + msg.Path, colorOK, false)
+			m.status = paint("✔ saved "+msg.Path, colorOK, false)
 		} else {
-			m.status = paint("✗ save failed: " + msg.Body, colorErr, false)
+			m.status = paint("✗ save failed: "+msg.Body, colorErr, false)
 		}
 		return m, nil
 	case ActivateMsg:
 		if msg.OK {
 			m.status = paint(msg.Body, colorOK, true)
 		} else {
-			m.status = paint("✗ activation rejected: " + msg.Body, colorErr, false)
+			m.status = paint("✗ activation rejected: "+msg.Body, colorErr, false)
 		}
 		return m, nil
 	}
@@ -239,11 +239,11 @@ func appendChar(m Model, ch string) (Model, tea.Cmd) {
 func gateDraftStatus(m Model) string {
 	sch, lerr := policy.LoadBundle([]byte(m.draft), "language")
 	if lerr != nil {
-		return paint("✗ draft rejected by deterministic gate: " + lerr.Error(), colorErr, false)
+		return paint("✗ draft rejected by deterministic gate: "+lerr.Error(), colorErr, false)
 	}
 	compiled, cerr := policy.CompileBundle(sch, policy.CompileOptions{})
 	if cerr != nil {
-		return paint("✗ draft rejected at compile: " + cerr.Error(), colorErr, false)
+		return paint("✗ draft rejected at compile: "+cerr.Error(), colorErr, false)
 	}
 	return paint(fmt.Sprintf("✔ valid PolicyBundle — %d rule(s); deterministic gate passed", len(compiled.Rules())), colorOK, true)
 }
@@ -291,8 +291,8 @@ func titleBar(m Model, width int, decorate bool) string {
 
 func centered(s string, width int) string {
 	n := runeLen(s)
-	if n >= width - 2 {
-		return truncateTo(s, width - 2)
+	if n >= width-2 {
+		return truncateTo(s, width-2)
 	}
 	pad := width - 2 - n
 	left := pad / 2
@@ -334,7 +334,7 @@ func fieldRow(m Model, idx int, label, value string, decorate bool, width int) s
 		// multiline statement: squeeze to a single padded line
 		val = strings.ReplaceAll(val, "\n", " ⏎ ")
 	}
-	row := "│ " + marker + pad(lab + "   " + val, widthBroth(width))
+	row := "│ " + marker + pad(lab+"   "+val, widthBroth(width))
 	if active && m.editing {
 		row = row + "▏"
 	}
@@ -348,7 +348,7 @@ func draftBox(m Model, width int, decorate bool) string {
 	}
 	raw := []string{}
 	for _, line := range strings.Split(m.draft, "\n") {
-		raw = append(raw, "│ " + pad(truncateTo(line, width-4), width-4) + "│")
+		raw = append(raw, "│ "+pad(truncateTo(line, width-4), width-4)+"│")
 	}
 	// cap the box height at 14 lines
 	if len(raw) > 14 {
@@ -391,11 +391,11 @@ func box(title string, body []string, width int) string {
 // --- styling (Lipgloss) ---
 
 const (
-	colorAccent = "6"   // cyan
-	colorOK     = "2"   // green
-	colorErr    = "1"   // red
-	colorWarn   = "3"   // yellow
-	colorDim    = "8"   // bright black
+	colorAccent = "6" // cyan
+	colorOK     = "2" // green
+	colorErr    = "1" // red
+	colorWarn   = "3" // yellow
+	colorDim    = "8" // bright black
 )
 
 // paint wraps text in ANSI styling; renders the same text when decorate is
@@ -483,7 +483,7 @@ func pad(s string, width int) string {
 	if runeLen(s) >= width {
 		return truncateTo(s, width)
 	}
-	return s + strings.Repeat(" ", width - runeLen(s))
+	return s + strings.Repeat(" ", width-runeLen(s))
 }
 
 func truncateTo(s string, width int) string {

@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"offense.dev/raid/core/approval"
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/core/store"
-	"offense.dev/raid/core/stream"
+	"github.com/offense-research/raid/core/approval"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/core/store"
+	"github.com/offense-research/raid/core/stream"
 )
 
 const bundleYAML = `
@@ -165,7 +165,7 @@ func TestA03ExpiredNoReceipt(t *testing.T) {
 	appr, _ := makeApproval(t, st, e, svc, key, req)
 	// force expiry by rewriting the row
 	nowNs := time.Now().UTC().UnixNano()
-	if _, err := st.Exec(`UPDATE approvals SET expires_at_ns = ? WHERE id = ?`, nowNs - 1000, appr.ID()); err != nil {
+	if _, err := st.Exec(`UPDATE approvals SET expires_at_ns = ? WHERE id = ?`, nowNs-1000, appr.ID()); err != nil {
 		t.Fatalf("expire: %v", err)
 	}
 	_, rec, _, err := svc.Resolve(appr.ID(), true, maintainer, appr.Version())

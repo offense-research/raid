@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"offense.dev/raid/core/util"
-	"offense.dev/raid/pkg/raidclient"
+	"github.com/offense-research/raid/core/util"
+	"github.com/offense-research/raid/pkg/raidclient"
 )
 
 // Dispatch handles `raid <args>`. Returns the process exit code.

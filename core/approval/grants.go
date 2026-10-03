@@ -11,7 +11,7 @@ import (
 	"database/sql"
 	"time"
 
-	"offense.dev/raid/core/util"
+	"github.com/offense-research/raid/core/util"
 )
 
 // GrantScopeOperation covers the same operation+environment for the principal.

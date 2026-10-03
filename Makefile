@@ -6,10 +6,21 @@ all:
 	$(GO) build -o raid ./main
 	ln -sf raid raidd
 
-.PHONY: all test bench clean install
+.PHONY: all test bench fmt vet lint clean install run-demo
 
 test:
 	$(GO) test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./core/cli ./pkg/raidclient
+
+fmt:
+	$(GO) fmt ./...
+	@test -z "$$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+vet:
+	$(GO) vet ./...
+
+# fmt + vet + the vulnerability scan, without running the full test matrix.
+lint: fmt vet
+	$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 bench:
 	$(GO) test -bench=Benchmark -benchmem -v ./core/bench

@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"offense.dev/raid/core/cli"
-	"offense.dev/raid/core/server"
-	"offense.dev/raid/core/util"
+	"github.com/offense-research/raid/core/cli"
+	"github.com/offense-research/raid/core/server"
+	"github.com/offense-research/raid/core/util"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 	}
 	base := argv0
 	if i := strings.LastIndexByte(argv0, '/'); i >= 0 {
-		base = argv0[i + 1:]
+		base = argv0[i+1:]
 	}
 	if base == "raidd" || base == "raid-daemon" {
 		code := runDaemon(os.Args[1:])
@@ -42,66 +42,66 @@ func runDaemon(args []string) int {
 	for i, a := range args {
 		switch a {
 		case "--socket":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.SocketPath = args[i+1]
 				socketSet = true
 			}
 		case "--db", "-d":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.DBPath = args[i+1]
 			}
 		case "--policy", "-p":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.PolicyFile = args[i+1]
 			}
 		case "--policy-preset":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.PolicyPreset = args[i+1]
 			}
 		case "--key":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.KeySeedFile = args[i+1]
 			}
 		case "--tcp":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.TCPAddr = args[i+1]
 			}
 		case "--tcp-token":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.TCPToken = args[i+1]
 			}
 		case "--tcp-cert":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.TLSCertFile = args[i+1]
 			}
 		case "--tcp-key":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.TLSKeyFile = args[i+1]
 			}
 		case "--tcp-client-ca":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				cfg.TLSClientCAFile = args[i+1]
 			}
 		case "--rate-limit":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				if f, ok := parseFloat(args[i+1]); ok {
 					cfg.RateLimitPerSec = f
 				}
 			}
 		case "--rate-burst":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				if n, ok := num(args[i+1]); ok {
 					cfg.RateLimitBurst = int(n)
 				}
 			}
 		case "--uid":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				if u, ok := num(args[i+1]); ok {
 					cfg.AllowUIDs = append(cfg.AllowUIDs, u)
 				}
 			}
 		case "--approver":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				seed := parseApprover(args[i+1])
 				cfg.Approvers = append(cfg.Approvers, seed)
 			}
@@ -196,7 +196,7 @@ func num(s string) (int64, bool) {
 		if c < '0' || c > '9' {
 			return 0, false
 		}
-		n = n*10 + int64(c - '0')
+		n = n*10 + int64(c-'0')
 	}
 	return n, true
 }

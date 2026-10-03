@@ -8,7 +8,7 @@ package jev
 import (
 	"slices"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // CacheKey returns the SHA-256 key for a semantic evaluation.

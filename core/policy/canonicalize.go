@@ -8,12 +8,12 @@ package policy
 import (
 	"fmt"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 func sVal(s string) canonical.Value { return canonical.Str(s) }
 func uVal(u uint64) canonical.Value { return canonical.Uint(u) }
-func iVal(i int64) canonical.Value { return canonical.Int(i) }
+func iVal(i int64) canonical.Value  { return canonical.Int(i) }
 
 func optText(m canonical.Value, key, v string) canonical.Value {
 	if v == "" {

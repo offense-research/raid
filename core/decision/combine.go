@@ -5,9 +5,9 @@ package decision
 import (
 	"time"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/jev"
-	"offense.dev/raid/core/policy"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/jev"
+	"github.com/offense-research/raid/core/policy"
 )
 
 // ApplySemantic runs the evaluator and combines monotonically.

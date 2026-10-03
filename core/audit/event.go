@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/store"
-	"offense.dev/raid/core/util"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/store"
+	"github.com/offense-research/raid/core/util"
 )
 
 // WriteDecision durably records a decision event according to the audit

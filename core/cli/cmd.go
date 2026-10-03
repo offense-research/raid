@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/tui"
-	"offense.dev/raid/pkg/raidclient"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/tui"
+	"github.com/offense-research/raid/pkg/raidclient"
 )
 
 func cmdDecision(args []string) int {
@@ -33,7 +33,7 @@ func decisionEval(args []string) int {
 	for i, a := range args {
 		switch a {
 		case "--request":
-			if i + 1 < len(args) {
+			if i+1 < len(args) {
 				requestJSON = args[i+1]
 			}
 		}
@@ -96,7 +96,7 @@ func cmdApproval(args []string) int {
 		}
 		var version uint64
 		for i, a := range args {
-			if a == "--expected-version" && i + 1 < len(args) {
+			if a == "--expected-version" && i+1 < len(args) {
 				v, ok := parseUint64(args[i+1])
 				if ok {
 					version = v
@@ -253,7 +253,7 @@ func parseUint64(s string) (uint64, bool) {
 		if c < '0' || c > '9' {
 			return 0, false
 		}
-		n = n * 10 + uint64(c - '0')
+		n = n*10 + uint64(c-'0')
 	}
 	return n, true
 }

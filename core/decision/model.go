@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/policy"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/policy"
 )
 
 // Effect rank: ALLOW < REQUIRE_APPROVAL < DENY (spec section 2.3).
@@ -44,8 +44,8 @@ func NewApprovalReference(id, state string, expiresAt time.Time) *ApprovalRefere
 	return &ApprovalReference{id: id, state: state, expiresAt: expiresAt}
 }
 
-func (a *ApprovalReference) ID() string          { return a.id }
-func (a *ApprovalReference) State() string       { return a.state }
+func (a *ApprovalReference) ID() string           { return a.id }
+func (a *ApprovalReference) State() string        { return a.state }
 func (a *ApprovalReference) ExpiresAt() time.Time { return a.expiresAt }
 
 // SemanticSummary records semantic-evaluation evidence (no raw state).
@@ -79,20 +79,20 @@ type Decision struct {
 	evaluationMicros int64
 }
 
-func (d *Decision) ID() string                 { return d.id }
-func (d *Decision) Effect() string             { return d.effect }
-func (d *Decision) ReasonCode() string         { return d.reasonCode }
-func (d *Decision) RequestHash() []byte        { return d.requestHash }
-func (d *Decision) PolicyBundleID() string     { return d.policyBundleID }
-func (d *Decision) PolicyBundleHash() []byte   { return d.policyBundleHash }
-func (d *Decision) MatchedRuleIDs() []string   { return d.matchedRuleIDs }
-func (d *Decision) Approval() *ApprovalReference { return d.approval }
+func (d *Decision) ID() string                             { return d.id }
+func (d *Decision) Effect() string                         { return d.effect }
+func (d *Decision) ReasonCode() string                     { return d.reasonCode }
+func (d *Decision) RequestHash() []byte                    { return d.requestHash }
+func (d *Decision) PolicyBundleID() string                 { return d.policyBundleID }
+func (d *Decision) PolicyBundleHash() []byte               { return d.policyBundleHash }
+func (d *Decision) MatchedRuleIDs() []string               { return d.matchedRuleIDs }
+func (d *Decision) Approval() *ApprovalReference           { return d.approval }
 func (d *Decision) ApprovalConfig() *policy.ApprovalConfig { return d.approvalConfig }
-func (d *Decision) GrantID() string             { return d.grantID }
-func (d *Decision) Semantic() *SemanticSummary { return d.semantic }
-func (d *Decision) EvaluatedAt() time.Time     { return d.evaluatedAt }
-func (d *Decision) ExpiresAt() time.Time       { return d.expiresAt }
-func (d *Decision) EvaluationMicros() int64    { return d.evaluationMicros }
+func (d *Decision) GrantID() string                        { return d.grantID }
+func (d *Decision) Semantic() *SemanticSummary             { return d.semantic }
+func (d *Decision) EvaluatedAt() time.Time                 { return d.evaluatedAt }
+func (d *Decision) ExpiresAt() time.Time                   { return d.expiresAt }
+func (d *Decision) EvaluationMicros() int64                { return d.evaluationMicros }
 
 // CopySemantic derives an editable copy (same package field access).
 func (d *Decision) CopySemantic() *Decision {
@@ -121,7 +121,7 @@ func (d *Decision) WithSemantic(s *SemanticSummary) *Decision {
 		requestHash: d.requestHash, policyBundleID: d.policyBundleID,
 		policyBundleHash: d.policyBundleHash, matchedRuleIDs: d.matchedRuleIDs,
 		approval: d.approval, approvalConfig: d.approvalConfig, grantID: d.grantID,
-		semantic: s,
+		semantic:    s,
 		evaluatedAt: d.evaluatedAt, expiresAt: d.expiresAt,
 		evaluationMicros: d.evaluationMicros,
 	}
@@ -135,7 +135,7 @@ func (d *Decision) WithApprovalConfig(c *policy.ApprovalConfig) *Decision {
 		requestHash: d.requestHash, policyBundleID: d.policyBundleID,
 		policyBundleHash: d.policyBundleHash, matchedRuleIDs: d.matchedRuleIDs,
 		approval: d.approval, approvalConfig: c, grantID: d.grantID,
-		semantic: d.semantic,
+		semantic:    d.semantic,
 		evaluatedAt: d.evaluatedAt, expiresAt: d.expiresAt,
 		evaluationMicros: d.evaluationMicros,
 	}
@@ -148,7 +148,7 @@ func (d *Decision) WithApproval(a *ApprovalReference) *Decision {
 		requestHash: d.requestHash, policyBundleID: d.policyBundleID,
 		policyBundleHash: d.policyBundleHash, matchedRuleIDs: d.matchedRuleIDs,
 		approval: a, approvalConfig: d.approvalConfig, grantID: d.grantID,
-		semantic: d.semantic,
+		semantic:    d.semantic,
 		evaluatedAt: d.evaluatedAt, expiresAt: d.expiresAt,
 		evaluationMicros: d.evaluationMicros,
 	}
@@ -164,14 +164,14 @@ func (d *Decision) WithGrantCoverage(grantID string) *Decision {
 		requestHash: d.requestHash, policyBundleID: d.policyBundleID,
 		policyBundleHash: d.policyBundleHash, matchedRuleIDs: d.matchedRuleIDs,
 		approval: nil, approvalConfig: d.approvalConfig, grantID: grantID,
-		semantic: d.semantic,
+		semantic:    d.semantic,
 		evaluatedAt: d.evaluatedAt, expiresAt: d.expiresAt,
 		evaluationMicros: d.evaluationMicros,
 	}
 }
 
 // WriteJSON appends the wire representation of the decision.
-func (d *Decision) WriteJSON(sb *strings.Builder) () {
+func (d *Decision) WriteJSON(sb *strings.Builder) {
 	sb.WriteString(`{"id":`)
 	canonical.WriteEscaped(sb, d.id)
 	sb.WriteString(`,"effect":"` + d.effect + `","reason_code":`)

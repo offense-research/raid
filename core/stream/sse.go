@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // QueueCap bounds buffered events per subscriber.
@@ -58,7 +58,7 @@ func (s *SseSubscriber) Poll() ([]Event, bool) {
 }
 
 // WriteEvent renders one SSE frame.
-func WriteEvent(sb *strings.Builder, e Event) () {
+func WriteEvent(sb *strings.Builder, e Event) {
 	sb.WriteString("event: ")
 	sb.WriteString(e.Kind)
 	sb.WriteString("\ndata: {\"id\":")
@@ -70,7 +70,7 @@ func WriteEvent(sb *strings.Builder, e Event) () {
 
 // StartStream keeps the SSE response open, emitting events and heartbeats,
 // until the client disconnects. seq starts at the client's last seen id.
-func StartStream(w http.ResponseWriter, sub *SseSubscriber, seq uint64) () {
+func StartStream(w http.ResponseWriter, sub *SseSubscriber, seq uint64) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
@@ -80,7 +80,7 @@ func StartStream(w http.ResponseWriter, sub *SseSubscriber, seq uint64) () {
 	var sb strings.Builder
 	for {
 		var wrote bool = false
-		for ; ; {
+		for {
 			events, ok := sub.Poll()
 			if !ok {
 				break
@@ -93,7 +93,7 @@ func StartStream(w http.ResponseWriter, sub *SseSubscriber, seq uint64) () {
 			}
 		}
 		now := time.Now()
-		if !wrote && time.Since(lastBeat) >= 15 * time.Second {
+		if !wrote && time.Since(lastBeat) >= 15*time.Second {
 			sb.WriteString(": ping\n\n")
 			lastBeat = now
 			wrote = true

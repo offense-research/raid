@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // parseApprovals converts /v1/approvals JSON into bounded views.
@@ -112,7 +112,7 @@ func summaryField(m map[string]canonical.Value) string {
 			if x, ok := im["value"]; ok && x.Kind() == canonical.VString {
 				val = x.AsString()
 			}
-			parts = append(parts, n + " = " + Truncate(Sanitize(val), 60))
+			parts = append(parts, n+" = "+Truncate(Sanitize(val), 60))
 		}
 		return strings.Join(parts, ", ")
 	}
@@ -142,15 +142,15 @@ func headerLine(m Model, width int) string {
 
 func pendingList(m Model, width int) string {
 	rows := []string{}
-	rows = append(rows, " ┌ Pending " + strings.Repeat("─", maxRune(0, width-11)) + "┐")
+	rows = append(rows, " ┌ Pending "+strings.Repeat("─", maxRune(0, width-11))+"┐")
 	// virtualized window: only render around the cursor (spec U01/U02)
 	window := 24
-	start := maxRune(0, m.cursor - window/2)
+	start := maxRune(0, m.cursor-window/2)
 	for i, a := range m.approvals {
-		if i < start || i > m.cursor + window/2 {
+		if i < start || i > m.cursor+window/2 {
 			continue
 		}
-		if m.filter != "" && !strings.Contains(a.AgentID + a.Operation + a.ResourceEnv, m.filter) {
+		if m.filter != "" && !strings.Contains(a.AgentID+a.Operation+a.ResourceEnv, m.filter) {
 			continue
 		}
 		mark := "  "
@@ -180,21 +180,21 @@ func pendingList(m Model, width int) string {
 		row = row + " " + pad(ttl, 8)
 		rows = append(rows, truncateTo(row, width-3))
 	}
-	rows = append(rows, " └" + strings.Repeat("─", maxRune(0, width-2)) + "┘")
+	rows = append(rows, " └"+strings.Repeat("─", maxRune(0, width-2))+"┘")
 	return strings.Join(rows, "\n")
 }
 
 // grantsList renders active scoped grants (virtualized around the cursor).
 func grantsList(m Model, width int) string {
 	rows := []string{}
-	rows = append(rows, " ┌ Grants " + strings.Repeat("─", maxRune(0, width-10)) + "┐")
+	rows = append(rows, " ┌ Grants "+strings.Repeat("─", maxRune(0, width-10))+"┐")
 	if len(m.grants) == 0 {
-		rows = append(rows, " │ (no active grants)" + strings.Repeat(" ", maxRune(0, width-21)) + "│")
+		rows = append(rows, " │ (no active grants)"+strings.Repeat(" ", maxRune(0, width-21))+"│")
 	}
 	window := 24
-	start := maxRune(0, m.cursor - window/2)
+	start := maxRune(0, m.cursor-window/2)
 	for i, g := range m.grants {
-		if i < start || i > m.cursor + window/2 {
+		if i < start || i > m.cursor+window/2 {
 			continue
 		}
 		cursor := " "
@@ -218,7 +218,7 @@ func grantsList(m Model, width int) string {
 		row = row + " " + pad(ttl, 8)
 		rows = append(rows, truncateTo(row, width-3))
 	}
-	rows = append(rows, " └" + strings.Repeat("─", maxRune(0, width-2)) + "┘")
+	rows = append(rows, " └"+strings.Repeat("─", maxRune(0, width-2))+"┘")
 	return strings.Join(rows, "\n")
 }
 
@@ -252,7 +252,7 @@ func requestDetail(m Model, width int) string {
 	var sb strings.Builder
 	sb.WriteString(" ┌ Request " + strings.Repeat("─", maxRune(0, width-11)) + "┐")
 	if len(m.approvals) == 0 {
-		sb.WriteString("\n │ (no pending approvals)"+ strings.Repeat(" ", maxRune(0, width-24)) + "│")
+		sb.WriteString("\n │ (no pending approvals)" + strings.Repeat(" ", maxRune(0, width-24)) + "│")
 	} else {
 		a := m.approvals[maxRune(0, m.cursor)]
 		detail := []string{
@@ -262,12 +262,12 @@ func requestDetail(m Model, width int) string {
 			"Environment " + a.ResourceEnv,
 		}
 		if a.Summary != "" {
-			detail = append(detail, "Arguments   " + a.Summary)
+			detail = append(detail, "Arguments   "+a.Summary)
 		}
 		if m.detail {
-			detail = append(detail, "Requester   " + a.SubjectID)
-			detail = append(detail, "Reason      " + a.Reason)
-			detail = append(detail, "Expires     " + a.ExpiresAt.Format(time.RFC3339))
+			detail = append(detail, "Requester   "+a.SubjectID)
+			detail = append(detail, "Reason      "+a.Reason)
+			detail = append(detail, "Expires     "+a.ExpiresAt.Format(time.RFC3339))
 		}
 		for _, line := range detail {
 			sb.WriteString("\n │ " + truncateTo(Sanitize(line), width-3))
@@ -282,7 +282,7 @@ func footerLine(m Model, width int) string {
 		return pad(m.err, width)
 	}
 	if m.filtering {
-		return pad(" filter: " + m.filter + "_", width)
+		return pad(" filter: "+m.filter+"_", width)
 	}
 	hint := " y approve once   n deny   d details   r refresh   t grants   / filter   q quit"
 	if m.mode == "grants" {
@@ -330,7 +330,7 @@ func pad(s string, width int) string {
 	if used >= width {
 		return truncateTo(s, width)
 	}
-	return s + strings.Repeat(" ", width - used)
+	return s + strings.Repeat(" ", width-used)
 }
 
 func truncateTo(s string, width int) string {

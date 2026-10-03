@@ -21,7 +21,7 @@ const TimestampTag = uint64(43)
 const DurationTag = uint64(44)
 
 // AppendUint appends the canonical CBOR encoding of an unsigned integer.
-func AppendUint(out *[]byte, u uint64) () {
+func AppendUint(out *[]byte, u uint64) {
 	if u < 24 {
 		*out = slices.Concat(*out, []byte{byte(u)})
 	} else if u < 256 {
@@ -38,19 +38,19 @@ func AppendUint(out *[]byte, u uint64) () {
 }
 
 // AppendText appends a definite-length text string.
-func AppendText(out *[]byte, s string) () {
+func AppendText(out *[]byte, s string) {
 	AppendHeader(out, 3, uint64(len(s)))
 	*out = slices.Concat(*out, []byte(s))
 }
 
 // AppendBytes appends a definite-length byte string.
-func AppendBytes(out *[]byte, b []byte) () {
+func AppendBytes(out *[]byte, b []byte) {
 	AppendHeader(out, 2, uint64(len(b)))
 	*out = slices.Concat(*out, b)
 }
 
 // AppendBool appends a CBOR boolean.
-func AppendBool(out *[]byte, b bool) () {
+func AppendBool(out *[]byte, b bool) {
 	if b {
 		*out = slices.Concat(*out, []byte{0xf5})
 	} else {
@@ -59,12 +59,12 @@ func AppendBool(out *[]byte, b bool) () {
 }
 
 // AppendNull appends CBOR null.
-func AppendNull(out *[]byte) () {
+func AppendNull(out *[]byte) {
 	*out = slices.Concat(*out, []byte{0xf6})
 }
 
 // AppendInt appends a signed integer in canonical (non-negative) form.
-func AppendInt(out *[]byte, i int64) () {
+func AppendInt(out *[]byte, i int64) {
 	if i >= 0 {
 		AppendUint(out, uint64(i))
 	} else {
@@ -73,7 +73,7 @@ func AppendInt(out *[]byte, i int64) () {
 }
 
 // AppendHeader appends a major-type header with definite length n.
-func AppendHeader(out *[]byte, major uint64, n uint64) () {
+func AppendHeader(out *[]byte, major uint64, n uint64) {
 	if n < 24 {
 		*out = slices.Concat(*out, []byte{byte((major << 5) | n)})
 		return
@@ -83,7 +83,7 @@ func AppendHeader(out *[]byte, major uint64, n uint64) () {
 }
 
 // AppendRawUint appends the numeric argument bytes for n >= 24 headers.
-func AppendRawUint(out *[]byte, n uint64) () {
+func AppendRawUint(out *[]byte, n uint64) {
 	if n < 256 {
 		*out = slices.Concat(*out, []byte{byte(n)})
 	} else if n < 65536 {
@@ -120,7 +120,7 @@ func keyPairCompare(a, b keyPair) int {
 }
 
 // EncodeMap appends a canonical map from string keys to pre-encoded values.
-func EncodeMap(out *[]byte, pairs []keyPair) () {
+func EncodeMap(out *[]byte, pairs []keyPair) {
 	slices.SortFunc(pairs, keyPairCompare)
 	AppendHeader(out, 5, uint64(len(pairs)))
 	for _, p := range pairs {
@@ -133,7 +133,7 @@ func EncodeMap(out *[]byte, pairs []keyPair) () {
 // Objects are key-sorted; list elements keep their encoded order.
 // Decimal, timestamp, and duration payloads carry distinct tags so they can
 // never collide with plain strings in the hash stream.
-func EncodeValue(out *[]byte, v Value) () {
+func EncodeValue(out *[]byte, v Value) {
 	switch v.Kind() {
 	case VNull:
 		AppendNull(out)

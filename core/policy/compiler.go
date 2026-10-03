@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"cel.dev/cel-go/cel"
-	"offense.dev/raid/core/canonical"
+	"github.com/offense-research/raid/core/canonical"
 )
 
 // TTL bounds in nanoseconds (spec section 8.4).
 const (
-	MinApprovalTTLNs   = 30_000_000_000
-	MaxApprovalTTLNs   = 1_800_000_000_000
+	MinApprovalTTLNs     = 30_000_000_000
+	MaxApprovalTTLNs     = 1_800_000_000_000
 	DefaultApprovalTTLNs = 300_000_000_000
 )
 
@@ -51,30 +51,30 @@ func (a *ApprovalConfig) AllowScope() string       { return a.allowScope }
 
 // CompiledRule is one immutable, compiled rule.
 type CompiledRule struct {
-	id          string
-	description string
-	effect      string
-	priority    int64
-	whenText    string
-	program     cel.Program
-	always      bool
-	approval    *ApprovalConfig
-	mProviders  []string
-	mOperations []string
-	mEffects    []string
+	id            string
+	description   string
+	effect        string
+	priority      int64
+	whenText      string
+	program       cel.Program
+	always        bool
+	approval      *ApprovalConfig
+	mProviders    []string
+	mOperations   []string
+	mEffects      []string
 	mEnvironments []string
 }
 
-func (r *CompiledRule) ID() string                 { return r.id }
-func (r *CompiledRule) Description() string        { return r.description }
-func (r *CompiledRule) Effect() string             { return r.effect }
-func (r *CompiledRule) Priority() int64            { return r.priority }
-func (r *CompiledRule) WhenText() string           { return r.whenText }
-func (r *CompiledRule) PassAlways() bool           { return r.always }
-func (r *CompiledRule) Approval() *ApprovalConfig  { return r.approval }
-func (r *CompiledRule) MatchProviders() []string   { return r.mProviders }
-func (r *CompiledRule) MatchOperations() []string  { return r.mOperations }
-func (r *CompiledRule) MatchEffects() []string     { return r.mEffects }
+func (r *CompiledRule) ID() string                  { return r.id }
+func (r *CompiledRule) Description() string         { return r.description }
+func (r *CompiledRule) Effect() string              { return r.effect }
+func (r *CompiledRule) Priority() int64             { return r.priority }
+func (r *CompiledRule) WhenText() string            { return r.whenText }
+func (r *CompiledRule) PassAlways() bool            { return r.always }
+func (r *CompiledRule) Approval() *ApprovalConfig   { return r.approval }
+func (r *CompiledRule) MatchProviders() []string    { return r.mProviders }
+func (r *CompiledRule) MatchOperations() []string   { return r.mOperations }
+func (r *CompiledRule) MatchEffects() []string      { return r.mEffects }
 func (r *CompiledRule) MatchEnvironments() []string { return r.mEnvironments }
 
 // NewStaticRule builds an always-true rule with only static match fields.
@@ -86,6 +86,7 @@ func NewStaticRule(id string, ops []string) *CompiledRule {
 		mOperations: ops,
 	}
 }
+
 // A rule without a `when` always matches. CEL runtime errors are surfaced
 // (they are policy errors, never false).
 func (r *CompiledRule) EvaluateWhen(activation map[string]any) (bool, error) {
@@ -109,28 +110,28 @@ func (r *CompiledRule) EvaluateWhen(activation map[string]any) (bool, error) {
 
 // CompiledBundle is the immutable activated bundle.
 type CompiledBundle struct {
-	id           string
-	name         string
-	revision     uint64
+	id            string
+	name          string
+	revision      uint64
 	defaultEffect string
-	hash         []byte
-	canonical    canonical.Value
-	rules        []*CompiledRule
-	index        *RuleIndex
-	guard        *CompiledGuard
-	tests        []*ExecutedTest
+	hash          []byte
+	canonical     canonical.Value
+	rules         []*CompiledRule
+	index         *RuleIndex
+	guard         *CompiledGuard
+	tests         []*ExecutedTest
 }
 
-func (b *CompiledBundle) ID() string               { return b.id }
-func (b *CompiledBundle) Name() string             { return b.name }
-func (b *CompiledBundle) Revision() uint64         { return b.revision }
-func (b *CompiledBundle) DefaultEffect() string    { return b.defaultEffect }
-func (b *CompiledBundle) Hash() []byte             { return b.hash }
+func (b *CompiledBundle) ID() string                 { return b.id }
+func (b *CompiledBundle) Name() string               { return b.name }
+func (b *CompiledBundle) Revision() uint64           { return b.revision }
+func (b *CompiledBundle) DefaultEffect() string      { return b.defaultEffect }
+func (b *CompiledBundle) Hash() []byte               { return b.hash }
 func (b *CompiledBundle) Canonical() canonical.Value { return b.canonical }
-func (b *CompiledBundle) Rules() []*CompiledRule   { return b.rules }
-func (b *CompiledBundle) Index() *RuleIndex        { return b.index }
-func (b *CompiledBundle) Guard() *CompiledGuard    { return b.guard }
-func (b *CompiledBundle) Tests() []*ExecutedTest   { return b.tests }
+func (b *CompiledBundle) Rules() []*CompiledRule     { return b.rules }
+func (b *CompiledBundle) Index() *RuleIndex          { return b.index }
+func (b *CompiledBundle) Guard() *CompiledGuard      { return b.guard }
+func (b *CompiledBundle) Tests() []*ExecutedTest     { return b.tests }
 
 // CompiledGuard is the normalized semantic guard configuration.
 type CompiledGuard struct {
@@ -145,15 +146,15 @@ type CompiledGuard struct {
 	escalation    string
 }
 
-func (g *CompiledGuard) Provider() string                 { return g.provider }
-func (g *CompiledGuard) Model() string                    { return g.model }
-func (g *CompiledGuard) Mode() string                     { return g.mode }
-func (g *CompiledGuard) DeadlineMs() int64                { return g.deadlineMs }
-func (g *CompiledGuard) FailureEffect() string            { return g.failureEffect }
-func (g *CompiledGuard) StateTemplate() string            { return g.stateTemplate }
-func (g *CompiledGuard) Questions() string                { return g.questions }
-func (g *CompiledGuard) Thresholds() map[string]float64   { return g.thresholds }
-func (g *CompiledGuard) Escalation() string               { return g.escalation }
+func (g *CompiledGuard) Provider() string               { return g.provider }
+func (g *CompiledGuard) Model() string                  { return g.model }
+func (g *CompiledGuard) Mode() string                   { return g.mode }
+func (g *CompiledGuard) DeadlineMs() int64              { return g.deadlineMs }
+func (g *CompiledGuard) FailureEffect() string          { return g.failureEffect }
+func (g *CompiledGuard) StateTemplate() string          { return g.stateTemplate }
+func (g *CompiledGuard) Questions() string              { return g.questions }
+func (g *CompiledGuard) Thresholds() map[string]float64 { return g.thresholds }
+func (g *CompiledGuard) Escalation() string             { return g.escalation }
 
 // NewGuardForTest builds a compiled guard for tests and the semantic flow.
 func NewGuardForTest(mode, failureEffect, escalation string, thresholds map[string]float64) *CompiledGuard {

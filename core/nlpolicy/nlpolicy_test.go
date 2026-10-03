@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/nlpolicy"
-	"offense.dev/raid/core/policy"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/nlpolicy"
+	"github.com/offense-research/raid/core/policy"
 )
 
 // A scripted transport records what was invoked and replays a canned response.
@@ -273,4 +273,3 @@ func TestTUIMasksUnsetKey(t *testing.T) {
 		t.Errorf("key leaked when unset")
 	}
 }
-

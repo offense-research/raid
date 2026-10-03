@@ -30,13 +30,13 @@ var AllowScopes = map[string]bool{
 
 // BundleSchema is the top-level policy document.
 type BundleSchema struct {
-	ApiVersion    string              `yaml:"apiVersion"`
-	Kind          string              `yaml:"kind"`
-	Metadata      *Metadata           `yaml:"metadata"`
-	Defaults      *Defaults           `yaml:"defaults"`
-	Rules         []*RuleSchema       `yaml:"rules"`
+	ApiVersion    string               `yaml:"apiVersion"`
+	Kind          string               `yaml:"kind"`
+	Metadata      *Metadata            `yaml:"metadata"`
+	Defaults      *Defaults            `yaml:"defaults"`
+	Rules         []*RuleSchema        `yaml:"rules"`
 	SemanticGuard *SemanticGuardSchema `yaml:"semantic_guard"`
-	Tests         []*TestSchema       `yaml:"tests"`
+	Tests         []*TestSchema        `yaml:"tests"`
 }
 
 // Metadata identifies the bundle.
@@ -52,14 +52,14 @@ type Defaults struct {
 
 // RuleSchema is one policy rule.
 type RuleSchema struct {
-	ID          string          `yaml:"id"`
-	Description string          `yaml:"description"`
-	Match       *MatchSchema    `yaml:"match"`
-	When        string          `yaml:"when"`
-	Effect      string          `yaml:"effect"`
-	Priority    int64           `yaml:"priority"`
-	Approval    *ApprovalSchema `yaml:"approval"`
-	SemanticGuard RuleSemantic  `yaml:"semantic_guard"`
+	ID            string          `yaml:"id"`
+	Description   string          `yaml:"description"`
+	Match         *MatchSchema    `yaml:"match"`
+	When          string          `yaml:"when"`
+	Effect        string          `yaml:"effect"`
+	Priority      int64           `yaml:"priority"`
+	Approval      *ApprovalSchema `yaml:"approval"`
+	SemanticGuard RuleSemantic    `yaml:"semantic_guard"`
 }
 
 // RuleSemantic scopes a semantic guard to a matched rule.

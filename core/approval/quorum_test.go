@@ -3,13 +3,13 @@ package approval_test
 import (
 	"testing"
 
-	"offense.dev/raid/core/approval"
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/core/store"
-	"offense.dev/raid/core/stream"
+	"github.com/offense-research/raid/core/approval"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/core/store"
+	"github.com/offense-research/raid/core/stream"
 )
 
 const quorumBundleYAML = `

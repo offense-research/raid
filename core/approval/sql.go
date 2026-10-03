@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/core/util"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/core/util"
 )
 
 func insertDecisionTx(tx *sql.Tx, d *decision.Decision, approvalID string, now time.Time) error {
@@ -67,7 +67,7 @@ func insertReceiptTx(tx *sql.Tx, claims *signing.Claims, r *signing.SignedReceip
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		claims.ReceiptID, claims.ApprovalID, claims.DecisionID, claims.RequestHash,
 		claims.PolicyBundleHash, r.KeyID, r.ClaimsBytes, r.Signature,
-		claims.IssuedAt * 1e9, claims.ExpiresAt * 1e9)
+		claims.IssuedAt*1e9, claims.ExpiresAt*1e9)
 	return err
 }
 
@@ -112,29 +112,29 @@ func parseSummary(raw string) []SafeField {
 
 // sqlApprovalRow mirrors one approval row for scanning.
 type sqlApprovalRow struct {
-	id                 string
-	decisionID         string
-	requestHash        []byte
-	principalID        string
-	agentID            string
-	sessionID          string
-	operation          string
-	resourceType       string
-	resourceID         string
-	environment        string
-	argumentsSummary   string
-	policyBundleHash   []byte
-	matchedRuleIDs     string
-	requiredGroups     string
-	quorum             uint32
-	allowScope         string
-	voteCount          int64
-	state              string
-	version            uint64
-	createdAtNs        int64
-	expiresAtNs        int64
-	resolvedAtNs       int64
-	hasResolved        bool
+	id               string
+	decisionID       string
+	requestHash      []byte
+	principalID      string
+	agentID          string
+	sessionID        string
+	operation        string
+	resourceType     string
+	resourceID       string
+	environment      string
+	argumentsSummary string
+	policyBundleHash []byte
+	matchedRuleIDs   string
+	requiredGroups   string
+	quorum           uint32
+	allowScope       string
+	voteCount        int64
+	state            string
+	version          uint64
+	createdAtNs      int64
+	expiresAtNs      int64
+	resolvedAtNs     int64
+	hasResolved      bool
 }
 
 func columnList() string {

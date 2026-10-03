@@ -8,28 +8,28 @@ import (
 	"strings"
 	"time"
 
-	"offense.dev/raid/core/api"
-	"offense.dev/raid/core/approval"
-	"offense.dev/raid/core/authn"
-	"offense.dev/raid/core/canonical"
-	"offense.dev/raid/core/decision"
-	"offense.dev/raid/core/jev"
-	"offense.dev/raid/core/policy"
-	"offense.dev/raid/core/signing"
-	"offense.dev/raid/core/store"
-	"offense.dev/raid/core/stream"
-	"offense.dev/raid/core/util"
+	"github.com/offense-research/raid/core/api"
+	"github.com/offense-research/raid/core/approval"
+	"github.com/offense-research/raid/core/authn"
+	"github.com/offense-research/raid/core/canonical"
+	"github.com/offense-research/raid/core/decision"
+	"github.com/offense-research/raid/core/jev"
+	"github.com/offense-research/raid/core/policy"
+	"github.com/offense-research/raid/core/signing"
+	"github.com/offense-research/raid/core/store"
+	"github.com/offense-research/raid/core/stream"
+	"github.com/offense-research/raid/core/util"
 )
 
 // Config is the daemon configuration (flags / config file).
 type Config struct {
-	DBPath      string
-	SocketPath  string
-	TCPAddr     string // empty => unix only
-	PolicyFile  string // activated at boot when set
-	AllowUIDs   []int64
-	Approvers   []ApproverSeed
-	KeySeedFile string
+	DBPath             string
+	SocketPath         string
+	TCPAddr            string // empty => unix only
+	PolicyFile         string // activated at boot when set
+	AllowUIDs          []int64
+	Approvers          []ApproverSeed
+	KeySeedFile        string
 	ForbidSelfApproval bool
 	// Solo selects the unprivileged single-user posture: self-approval is
 	// permitted and the local user is seeded as their own approver.
@@ -109,7 +109,7 @@ func Boot(cfg Config) (*Daemon, error) {
 	svc := approval.NewService(st, key, hub, cfg.ForbidSelfApproval)
 	var evaluator jev.SemanticEvaluator
 	if k := os.Getenv("TYPESAFE_API_KEY"); k != "" {
-		evaluator = jev.NewHttpEvaluator("", k, "", 650 * int64(time.Millisecond))
+		evaluator = jev.NewHttpEvaluator("", k, "", 650*int64(time.Millisecond))
 	}
 	server := api.NewServer(api.Config{
 		Engine: engine, Approvals: svc, Store: st, Hub: hub, Key: key,
@@ -154,7 +154,7 @@ func (d *Daemon) ActivatePreset(name string) error {
 		return err
 	}
 	if _, err := d.Store.Exec(`INSERT INTO policy_activations (id, bundle_id, actor, activated_at_ns)
-		VALUES (?, ?, ?, ?)`, util.NewID("act"), bundle.ID(), "preset:" + userName(), now.UnixNano()); err != nil {
+		VALUES (?, ?, ?, ?)`, util.NewID("act"), bundle.ID(), "preset:"+userName(), now.UnixNano()); err != nil {
 		return err
 	}
 	d.Engine.Activate(bundle)
@@ -205,7 +205,7 @@ func (d *Daemon) ActivateAttempt(path string) error {
 		return err
 	}
 	if _, err := d.Store.Exec(`INSERT INTO policy_activations (id, bundle_id, actor, activated_at_ns)
-		VALUES (?, ?, ?, ?)`, util.NewID("act"), bundle.ID(), "admin:" + userName(), now.UnixNano()); err != nil {
+		VALUES (?, ?, ?, ?)`, util.NewID("act"), bundle.ID(), "admin:"+userName(), now.UnixNano()); err != nil {
 		return err
 	}
 	d.Engine.Activate(bundle)
@@ -242,13 +242,10 @@ func (d *Daemon) Serve() error {
 	if d.Cfg.SocketPath == "" && d.Cfg.TCPAddr == "" {
 		return errors.New("raid: no listener configured")
 	}
-	for {
-		time.Sleep(1 << 30 * time.Nanosecond)
-	}
-	return nil
+	select {} // block forever; listeners run on their own goroutines
 }
 
-func (d *Daemon) sweepLoop() () {
+func (d *Daemon) sweepLoop() {
 	for {
 		time.Sleep(5 * time.Second)
 		_, _ = d.svc.SweepExpired()
