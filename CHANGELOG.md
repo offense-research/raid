@@ -53,6 +53,14 @@ First engineering handoff build of the open-source MVP.
   - Windsurf Cascade hooks (`integrations/windsurf/`)
   - `raidlib.provider()` lets each adapter record the real caller
     (`RAID_PROVIDER`), defaulting to `claude-code` as before
+- Terminal coding-agent shims (`integrations/cli/`, `integrations/aider/`,
+  `integrations/codex/`)
+  - `raid-exec` runs a shell command only on `allow` (deny exits 126,
+    require_approval exits 125) and fails closed when raidd is unreachable
+  - Aider: `raid-exec` plus optional `pre-push`/`pre-commit` git hooks, since
+    Aider commits on your behalf
+  - Codex CLI: `raid-exec` for shell commands plus the shared MCP server for
+    `raid_check`/`raid_pending`
 - Shared adapter library (`integrations/lib/raidlib.py`): the HTTP-over-unix
   client and the shell-command classifier now live in one place reused by every
   agent adapter
