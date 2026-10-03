@@ -55,12 +55,16 @@ daemon is running:
 - Claude Code: `cd integrations/claude-code && RAID_ENV=development ./install.sh`
 - Cursor: copy `integrations/cursor/hooks.example.json` to `~/.cursor/hooks.json`
   and point the command paths at the checkout.
+- Codex (the CLI, the IDE extension, and Codex in the ChatGPT desktop app share
+  one config): `integrations/codex/install.sh --write-config --write-skill`
 
 Details in `integrations/*/README.md`.
 
 ## Files that make up the skill
 
 - `skills/raid/SKILL.md` — the skill itself (drop-in at an agent skill root)
+- `skills/raid/agents/openai.yaml` — Codex / ChatGPT desktop UI metadata: the
+  display name, short description, accent colour, and default prompt
 - `tools/raid-provision.sh` — one-command provisioning the skill drives
 - `examples/` — starter policy and demo requests the demo uses
 

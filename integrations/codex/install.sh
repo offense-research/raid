@@ -1,27 +1,40 @@
 #!/bin/sh
-# Install the Raid guardrail for Codex CLI.
+# Install the Raid guardrail for Codex.
 #
-# Codex CLI supports MCP servers, so the agent can ask Raid before acting
-# (raid_check / raid_pending). This script:
-#   1. installs the `raid-exec` shim for shell commands the agent runs, and
-#   2. prints the [mcp_servers.raid] block to add to ~/.codex/config.toml.
+# Every Codex host shares one configuration: the ChatGPT desktop app, Codex
+# CLI, and the IDE extension all read MCP servers from ~/.codex/config.toml and
+# skills from ~/.agents/skills. So this script wires both once and all three
+# clients pick them up:
+#
+#   1. installs the `raid-exec` shim for shell commands the agent runs,
+#   2. writes the [mcp_servers.raid] block (raid_check / raid_pending) into
+#      ~/.codex/config.toml,
+#   3. copies the `raid` skill into ~/.agents/skills/raid.
 #
 # Usage:
-#   ./install.sh [--write-config] [--socket PATH] [--config PATH]
+#   ./install.sh [--write-config] [--write-skill] [--socket PATH]
+#                [--config PATH] [--skill-dir PATH]
+#
+# With neither --write-config nor --write-skill it prints what it would do.
 set -eu
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-CLI_DIR=$(cd "$HERE/../cli" && pwd)
-MCP_SERVER=$(cd "$HERE/../claude-code" && pwd)/mcp_server.py
+REPO=$(cd "$HERE/../.." && pwd)
+CLI_DIR="$REPO/integrations/cli"
+MCP_SERVER="$REPO/integrations/claude-code/mcp_server.py"
+SKILL_SRC="$REPO/skills/raid/SKILL.md"
 
 BINDIR="${RAID_BINDIR:-$HOME/.local/bin}"
 SOCKET="${RAID_SOCKET:-$HOME/.local/state/offense/raid/raid.sock}"
 CONFIG="${CODEX_CONFIG:-$HOME/.codex/config.toml}"
-WRITE=0
+SKILLDIR="${CODEX_SKILL_DIR:-$HOME/.agents/skills}"
+WRITE_CONFIG=0
+WRITE_SKILL=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--write-config) WRITE=1 ;;
+	--write-config) WRITE_CONFIG=1 ;;
+	--write-skill) WRITE_SKILL=1 ;;
 	--socket)
 		SOCKET="$2"
 		shift
@@ -30,7 +43,14 @@ while [ $# -gt 0 ]; do
 		CONFIG="$2"
 		shift
 		;;
-	*) echo "unknown option: $1" >&2; exit 64 ;;
+	--skill-dir)
+		SKILLDIR="$2"
+		shift
+		;;
+	*)
+		echo "unknown option: $1" >&2
+		exit 64
+		;;
 	esac
 	shift
 done
@@ -45,7 +65,7 @@ args = [\"$MCP_SERVER\"]
 env = { RAID_SOCKET = \"$SOCKET\", RAID_ENV = \"development\", RAID_PROVIDER = \"codex\", RAID_AGENT = \"codex\", RAID_RUNTIME = \"codex\" }
 "
 
-if [ "$WRITE" = "1" ]; then
+if [ "$WRITE_CONFIG" = "1" ]; then
 	mkdir -p "$(dirname "$CONFIG")"
 	if grep -q '^\[mcp_servers\.raid\]' "$CONFIG" 2>/dev/null; then
 		echo "note: [mcp_servers.raid] already present in $CONFIG; leaving it unchanged"
@@ -59,3 +79,27 @@ else
 	echo
 	printf '%s\n' "$BLOCK"
 fi
+
+if [ "$WRITE_SKILL" = "1" ]; then
+	mkdir -p "$SKILLDIR/raid"
+	install -m 0644 "$SKILL_SRC" "$SKILLDIR/raid/SKILL.md"
+	echo "installed the raid skill at $SKILLDIR/raid/SKILL.md"
+else
+	echo
+	echo "Install the raid skill (or re-run with --write-skill):"
+	echo
+	echo "    install -Dm644 $SKILL_SRC $SKILLDIR/raid/SKILL.md"
+fi
+
+cat <<'EOF'
+
+Every Codex host picks both up, because they share this configuration:
+  - Codex CLI
+  - the Codex IDE extension
+  - Codex in the ChatGPT desktop app
+
+In the ChatGPT desktop app, Settings -> MCP servers lists the same servers
+(use Restart after the first install), and skills appear in the sidebar.
+Codex has no pre-tool hook, so `raid-exec` is still how shell commands get
+gated -- see integrations/cli/README.md.
+EOF

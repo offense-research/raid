@@ -1,0 +1,20 @@
+# Codex / ChatGPT desktop metadata for the Raid skill.
+#
+# Claude Code ignores this file. Codex clients (the Codex CLI, the IDE
+# extension, and the ChatGPT desktop app) read it for the UI metadata the
+# desktop app shows in its Skills list.
+#
+# `policy` and `dependencies` are deliberately omitted:
+#   - The raid MCP server is registered through config.toml
+#     ([mcp_servers.raid]) by integrations/codex/install.sh, not declared here.
+#     `dependencies.tools[]` documents remote MCP servers (transport
+#     streamable_http + a url), which does not describe a local stdio process.
+#   - Invocation is left at the default (implicit invocation allowed) so the
+#     skill can be picked up from the onboarding prompt. To restrict it, add
+#     `policy: { allow_implicit_invocation: false }`.
+
+interface:
+  display_name: "Raid policy and approval engine"
+  short_description: "Local policy and approval layer for agent actions."
+  brand_color: "#B45309"
+  default_prompt: "Use $raid to provision Raid and guard this project's agent actions."

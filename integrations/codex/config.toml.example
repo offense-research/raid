@@ -1,20 +1,28 @@
-# Raid x Codex CLI
+# Raid x Codex
 #
 # Copy the [mcp_servers.raid] block into ~/.codex/config.toml and point the
-# path at your Raid checkout. Codex CLI then gains the raid_check and
-# raid_pending tools, so the agent can ask the policy engine before acting --
-# the same MCP server the Claude Code, Cursor, and VS Code adapters use.
+# path at your Raid checkout. Codex CLI, the Codex IDE extension, and Codex in
+# the ChatGPT desktop app all read this file, so the raid_check and
+# raid_pending tools become available in all three -- the same MCP server the
+# Claude Code, Cursor, and VS Code adapters use.
+#
+# In the ChatGPT desktop app the server then appears under
+# Settings -> MCP servers (select Restart after the first install).
+#
+# Skills are separate: Codex reads them from ~/.agents/skills, so also run
+#
+#   install -Dm644 skills/raid/SKILL.md ~/.agents/skills/raid/SKILL.md
 
 [mcp_servers.raid]
 command = "python3"
 args = ["/abs/path/raid/integrations/claude-code/mcp_server.py"]
-env = { RAID_SOCKET = "/home/you/.local/state/offense/raid/raid.sock", RAID_ENV = "development", RAID_PROVIDER = \"codex\", RAID_AGENT = "codex", RAID_RUNTIME = "codex" }
+env = { RAID_SOCKET = "/home/you/.local/state/offense/raid/raid.sock", RAID_ENV = "development", RAID_PROVIDER = "codex", RAID_AGENT = "codex", RAID_RUNTIME = "codex" }
 
-# Optional: notify on turn completion (Codex CLI `notify` hook) so a run that
+# Optional: notify on turn completion (Codex `notify` hook) so a run that
 # stopped for an approval is visible. Point it at your own notifier.
 # notify = ["/usr/bin/env", "printf", "codex-turn-finished"]
 
-# Codex CLI approval/sandbox posture. Raid only ever restricts what Codex would
+# Codex approval/sandbox posture. Raid only ever restricts what Codex would
 # already allow, so keep Codex's own guardrails on as well.
 # approval_policy = "on-request"
 # sandbox_mode = "workspace-write"
