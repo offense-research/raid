@@ -48,13 +48,13 @@ if [ "$GIT_HOOKS" = "1" ]; then
 	cat >"$hooks/pre-push" <<EOF
 #!/bin/sh
 # Raid guardrail: ask the policy engine before pushing.
-${sock_line}export RAID_AGENT=aider RAID_RUNTIME=aider
+${sock_line}export RAID_PROVIDER=aider RAID_AGENT=aider RAID_RUNTIME=aider
 exec "$BINDIR/raid-exec" --check -- git push
 EOF
 	cat >"$hooks/pre-commit" <<EOF
 #!/bin/sh
 # Raid guardrail: ask the policy engine before committing.
-${sock_line}export RAID_AGENT=aider RAID_RUNTIME=aider
+${sock_line}export RAID_PROVIDER=aider RAID_AGENT=aider RAID_RUNTIME=aider
 exec "$BINDIR/raid-exec" --check -- git commit
 EOF
 	chmod +x "$hooks/pre-push" "$hooks/pre-commit"

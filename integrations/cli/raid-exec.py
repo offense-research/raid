@@ -23,6 +23,7 @@ Options:
 Environment:
   RAID_SOCKET     raidd unix socket (default /run/offense/raid/raid.sock)
   RAID_ENV        classified environment (default development)
+  RAID_PROVIDER   provider recorded in the action (default claude-code)
   RAID_AGENT      agent id in the principal (default claude-code)
 
 An unreachable raidd fails closed (exit 126) — never a silent allow.

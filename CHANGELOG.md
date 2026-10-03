@@ -38,17 +38,21 @@ First engineering handoff build of the open-source MVP.
   - Injectable via `SetHttpClient`/`SetTransport`; tests use a local
     `httptest` server, never the public network
 - Cursor coding-agent adapter (`integrations/cursor/`)
-- CLI coding-agent shims on the shared `raidlib`
-  - `raid-exec` (`integrations/cli/`) runs a shell command only when Raid allows
-    it, for agents with no pre-tool hook API
-  - Aider (`integrations/aider/`) installer wiring `raid-exec` into git hooks
-  - Codex CLI (`integrations/codex/`) installer wiring the shared MCP server
-    (`raid_check`/`raid_pending`) plus the `raid-exec` shim
+- Zero-friction packaging
+  - `install.sh` (one-liner `curl -fsSL ... | sh`) detects OS/arch, verifies the
+    release checksum, and installs `raid` + `raidd` into PATH
+  - Homebrew formula at `packaging/homebrew/raid.rb` (builds from the tagged
+    source tarball), installable from the repo or as a tap
   - One hooks adapter (`hook_gate.py`) for `beforeShellExecution`,
     `preToolUse`, `beforeReadFile`, and `beforeMCPExecution`, answering with
     Cursor's permission object; `require_approval` is answered as deny with the
     approval id (never Cursor's `ask`), keeping approval inside Raid
   - `hooks.example.json` for `.cursor/hooks.json`
+- More coding-agent adapters on the shared `raidlib`
+  - VS Code (`integrations/vscode/`) `PreToolUse` hook
+  - Windsurf Cascade hooks (`integrations/windsurf/`)
+  - `raidlib.provider()` lets each adapter record the real caller
+    (`RAID_PROVIDER`), defaulting to `claude-code` as before
 - Shared adapter library (`integrations/lib/raidlib.py`): the HTTP-over-unix
   client and the shell-command classifier now live in one place reused by every
   agent adapter

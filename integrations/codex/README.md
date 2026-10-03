@@ -13,7 +13,7 @@ allowed before doing it) and `raid_pending` (list approvals awaiting a human):
 [mcp_servers.raid]
 command = "python3"
 args = ["/abs/path/raid/integrations/claude-code/mcp_server.py"]
-env = { RAID_SOCKET = "/home/you/.local/state/offense/raid/raid.sock", RAID_ENV = "development", RAID_AGENT = "codex", RAID_RUNTIME = "codex" }
+env = { RAID_SOCKET = "/home/you/.local/state/offense/raid/raid.sock", RAID_ENV = "development", RAID_PROVIDER = \"codex\", RAID_AGENT = "codex", RAID_RUNTIME = "codex" }
 ```
 
 A copy is in `config.toml.example`.
@@ -56,8 +56,11 @@ sandbox_mode = "workspace-write"
 |---|---|---|
 | `RAID_SOCKET` | raidd unix socket | `/run/offense/raid/raid.sock` |
 | `RAID_ENV` | classified `resource.environment` | `development` |
-| `RAID_AGENT` / `RAID_RUNTIME` | agent id and runtime in the principal | `claude-code` (set `codex`) |
-| `RAID_AGENT` | agent id in the principal | `claude-code` |
+| `RAID_PROVIDER` | provider recorded in the action | `claude-code` (install.sh sets `codex`) |
+| `RAID_AGENT` | agent id in the principal | `claude-code` (install.sh sets `codex`) |
+| `RAID_RUNTIME` | runtime recorded in the action | `claude-code` (install.sh sets `codex`) |
+The installer records `codex` as the caller so the audit trail names the real
+agent rather than the adapter default.
 
 ## Behavior
 

@@ -40,12 +40,12 @@ Then call it wherever the agent would otherwise run a shell command directly.
 |---|---|---|
 | `RAID_SOCKET` | raidd unix socket | `/run/offense/raid/raid.sock` |
 | `RAID_ENV` | classified `resource.environment` | `development` |
+| `RAID_PROVIDER` | provider recorded in the action | `claude-code` |
 | `RAID_AGENT` | agent id in the principal | `claude-code` |
-
-| `RAID_AGENT` / `RAID_RUNTIME` | agent id and runtime in the principal | `claude-code` |
-
-Set `RAID_AGENT` / `RAID_RUNTIME` to the agent you are wrapping (for example
-`aider` or `codex`) so the audit trail names the real caller.
+| `RAID_RUNTIME` | runtime recorded in the action | `claude-code` |
+Set `RAID_PROVIDER` / `RAID_AGENT` / `RAID_RUNTIME` to the agent you are
+wrapping (for example `aider` or `codex`) so the audit trail names the real
+caller.
 
 An unreachable raidd or a classification failure fails closed (exit 126) — never
 a silent allow.

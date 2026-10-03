@@ -47,8 +47,11 @@ the step rather than being executed.
 |---|---|---|
 | `RAID_SOCKET` | raidd unix socket | `/run/offense/raid/raid.sock` |
 | `RAID_ENV` | classified `resource.environment` | `development` |
-| `RAID_AGENT` / `RAID_RUNTIME` | agent id and runtime in the principal | `claude-code` (install.sh sets `aider` for the git hooks) |
-| `RAID_AGENT` | agent id in the principal | `claude-code` |
+| `RAID_PROVIDER` | provider recorded in the action | `claude-code` (install.sh sets `aider`) |
+| `RAID_AGENT` | agent id in the principal | `claude-code` (install.sh sets `aider`) |
+| `RAID_RUNTIME` | runtime recorded in the action | `claude-code` (install.sh sets `aider`) |
+The installer records `aider` as the caller so the audit trail names the real
+agent rather than the adapter default.
 
 Run a solo daemon with the deny-first preset (no root, self-approval):
 

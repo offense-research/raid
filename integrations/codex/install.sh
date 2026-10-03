@@ -42,7 +42,7 @@ echo "installed $BINDIR/raid-exec"
 BLOCK="[mcp_servers.raid]
 command = \"python3\"
 args = [\"$MCP_SERVER\"]
-env = { RAID_SOCKET = \"$SOCKET\", RAID_ENV = \"development\", RAID_AGENT = \"codex\", RAID_RUNTIME = \"codex\" }
+env = { RAID_SOCKET = \"$SOCKET\", RAID_ENV = \"development\", RAID_PROVIDER = \"codex\", RAID_AGENT = \"codex\", RAID_RUNTIME = \"codex\" }
 "
 
 if [ "$WRITE" = "1" ]; then

@@ -8,7 +8,7 @@
 [mcp_servers.raid]
 command = "python3"
 args = ["/abs/path/raid/integrations/claude-code/mcp_server.py"]
-env = { RAID_SOCKET = "/home/you/.local/state/offense/raid/raid.sock", RAID_ENV = "development", RAID_AGENT = "codex", RAID_RUNTIME = "codex" }
+env = { RAID_SOCKET = "/home/you/.local/state/offense/raid/raid.sock", RAID_ENV = "development", RAID_PROVIDER = \"codex\", RAID_AGENT = "codex", RAID_RUNTIME = "codex" }
 
 # Optional: notify on turn completion (Codex CLI `notify` hook) so a run that
 # stopped for an approval is visible. Point it at your own notifier.
