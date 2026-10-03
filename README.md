@@ -202,8 +202,9 @@ cd integrations/claude-code && RAID_ENV=development ./install.sh   # Claude Code
 
 For Cursor, copy `integrations/cursor/hooks.example.json` to
 `~/.cursor/hooks.json` and point the command paths at your checkout. VS Code and
-Windsurf use their own `settings.example.json` / `hooks.example.json`. Every
-adapter shares `integrations/lib/raidlib.py`; see `integrations/*/README.md`.
+Windsurf use their own `settings.example.json` / `hooks.example.json`; terminal
+agents (Aider, Codex CLI) go through the `raid-exec` shim in `integrations/cli/`.
+Every adapter shares `integrations/lib/raidlib.py`; see `integrations/*/README.md`.
 
 ### 7. Connect and secure clients
 
@@ -275,9 +276,10 @@ Single Go module (`github.com/offense-research/raid`):
 - `core/server` — daemon boot; `core/cli` — the `raid` command surface
 - `pkg/raidclient` — Go client for the CLI, TUI, and proxies
 - `integrations/` — coding-agent adapters (Claude Code, Cursor, VS Code,
-  Windsurf) + shared `lib/raidlib.py` · `skills/` — drop-in provisioning skill ·
-  `api/` — OpenAPI and JSON schemas · `docs/` — threat model, policy language,
-  approvals, Jev, performance · `examples/` — demo policy + requests
+  Windsurf, Aider, Codex CLI) + shared `lib/raidlib.py` and the `cli/`
+  `raid-exec` shim · `skills/` — drop-in provisioning skill · `api/` — OpenAPI
+  and JSON schemas · `docs/` — threat model, policy language, approvals, Jev,
+  performance · `examples/` — demo policy + requests
 
 ## Configuration
 
@@ -380,11 +382,16 @@ Code's `permissionDecision` object, mapped from the same normalization library.
 `pre_run_command`, `pre_write_code`, `pre_read_code`, and `pre_mcp_tool_use`
 that blocks with exit status 2 on `deny`/`require_approval`.
 
+**Aider / Codex CLI** (`integrations/aider/`, `integrations/codex/`): terminal
+agents with no pre-tool hook API are gated through the shared `raid-exec` shim
+(`integrations/cli/`), which runs a command only when Raid allows it; Codex CLI
+also picks up the shared MCP server for `raid_check`/`raid_pending`.
+
 See each adapter's README for details and security invariants.
 
 ## Roadmap
 
-- **More agent adapters** (Codex CLI, Gemini CLI, Crush) on the shared library.
+- **More agent adapters** (Gemini CLI, Crush) on the shared library.
 - **Packaging:** an npm/PyPI wrapper.
 - **Policy simulation:** dry-run a request corpus against a candidate bundle.
 
