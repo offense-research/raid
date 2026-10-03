@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	cel.dev/cel-go v0.32.0
-	charm.land/bubbletea/v2 v2.0.9
+	charm.land/bubbletea/v2 v2.0.10
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/mattn/go-sqlite3 v1.14.52
 	go.yaml.in/yaml/v3 v3.0.5
