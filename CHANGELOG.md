@@ -38,12 +38,11 @@ First engineering handoff build of the open-source MVP.
   - Injectable via `SetHttpClient`/`SetTransport`; tests use a local
     `httptest` server, never the public network
 - Cursor coding-agent adapter (`integrations/cursor/`)
-- CLI coding-agent shims on the shared `raidlib`
-  - `raid-exec` (`integrations/cli/`) runs a shell command only when Raid allows
-    it, for agents with no pre-tool hook API
-  - Aider (`integrations/aider/`) installer wiring `raid-exec` into git hooks
-  - Codex CLI (`integrations/codex/`) installer wiring the shared MCP server
-    (`raid_check`/`raid_pending`) plus the `raid-exec` shim
+- More coding-agent adapters on the shared `raidlib`
+  - VS Code (`integrations/vscode/`) `PreToolUse` hook
+  - Windsurf Cascade hooks (`integrations/windsurf/`)
+  - `raidlib.provider()` lets each adapter record the real caller
+    (`RAID_PROVIDER`), defaulting to `claude-code` as before
   - One hooks adapter (`hook_gate.py`) for `beforeShellExecution`,
     `preToolUse`, `beforeReadFile`, and `beforeMCPExecution`, answering with
     Cursor's permission object; `require_approval` is answered as deny with the

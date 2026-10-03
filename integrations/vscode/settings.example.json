@@ -1,0 +1,18 @@
+{
+  "//": "Raid x VS Code (GitHub Copilot agent mode). Point the hook at your checkout.",
+  "github.copilot.chat.hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "python3 /abs/path/raid/integrations/vscode/hook_gate.py"
+      }
+    ]
+  },
+  "//env": {
+    "RAID_SOCKET": "/home/you/.local/state/offense/raid/raid.sock",
+    "RAID_ENV": "development",
+    "RAID_PROVIDER": "vscode",
+    "RAID_AGENT": "vscode",
+    "RAID_RUNTIME": "vscode"
+  }
+}

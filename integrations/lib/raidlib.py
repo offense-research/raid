@@ -105,10 +105,20 @@ def principal():
     }
 
 
+def provider():
+    """The agent product this adapter speaks for.
+
+    Defaults to "claude-code" so the existing Claude Code/Cursor adapters are
+    unchanged; newer adapters (VS Code, Windsurf, ...) set RAID_PROVIDER so the
+    audit trail names the real caller.
+    """
+    return os.environ.get("RAID_PROVIDER", "claude-code")
+
+
 def context(source_request_id, interactive=True):
     return {
         "timestamp": _now_rfc3339(),
-        "source_product": "claude-code",
+        "source_product": provider(),
         "source_version": "0.1.0",
         "source_request_id": source_request_id,
         "task_summary": os.environ.get("RAID_TASK", ""),
@@ -448,7 +458,7 @@ def tool_to_action(tool_name, tool_input, request_id, environment="development",
         "request_id": request_id,
         "principal": auth,
         "action": {
-            "provider": "claude-code",
+            "provider": provider(),
             "operation": operation,
             "effect": fx if fx != "execute" else "execute",
         },

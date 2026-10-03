@@ -1,0 +1,29 @@
+{
+  "//": "Raid x Windsurf (Cascade). Copy to ~/.codeium/windsurf/hooks.json and point the command at your checkout.",
+  "hooks": {
+    "pre_run_command": [
+      {
+        "command": "python3 /abs/path/raid/integrations/windsurf/hook_gate.py",
+        "show_output": true
+      }
+    ],
+    "pre_write_code": [
+      {
+        "command": "python3 /abs/path/raid/integrations/windsurf/hook_gate.py",
+        "show_output": true
+      }
+    ],
+    "pre_read_code": [
+      {
+        "command": "python3 /abs/path/raid/integrations/windsurf/hook_gate.py",
+        "show_output": true
+      }
+    ],
+    "pre_mcp_tool_use": [
+      {
+        "command": "python3 /abs/path/raid/integrations/windsurf/hook_gate.py",
+        "show_output": true
+      }
+    ]
+  }
+}
