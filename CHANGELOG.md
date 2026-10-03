@@ -38,6 +38,11 @@ First engineering handoff build of the open-source MVP.
   - Injectable via `SetHttpClient`/`SetTransport`; tests use a local
     `httptest` server, never the public network
 - Cursor coding-agent adapter (`integrations/cursor/`)
+- Zero-friction packaging
+  - `install.sh` (one-liner `curl -fsSL ... | sh`) detects OS/arch, verifies the
+    release checksum, and installs `raid` + `raidd` into PATH
+  - Homebrew formula at `packaging/homebrew/raid.rb` (builds from the tagged
+    source tarball), installable from the repo or as a tap
   - One hooks adapter (`hook_gate.py`) for `beforeShellExecution`,
     `preToolUse`, `beforeReadFile`, and `beforeMCPExecution`, answering with
     Cursor's permission object; `require_approval` is answered as deny with the
@@ -48,11 +53,6 @@ First engineering handoff build of the open-source MVP.
   - Windsurf Cascade hooks (`integrations/windsurf/`)
   - `raidlib.provider()` lets each adapter record the real caller
     (`RAID_PROVIDER`), defaulting to `claude-code` as before
-- Zero-friction packaging
-  - `install.sh` (one-liner `curl -fsSL ... | sh`) detects OS/arch, verifies the
-    release checksum, and installs `raid` + `raidd` into PATH
-  - Homebrew formula at `packaging/homebrew/raid.rb` (builds from the tagged
-    source tarball), installable from the repo or as a tap
 - Shared adapter library (`integrations/lib/raidlib.py`): the HTTP-over-unix
   client and the shell-command classifier now live in one place reused by every
   agent adapter

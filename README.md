@@ -384,7 +384,7 @@ See each adapter's README for details and security invariants.
 
 ## Roadmap
 
-- **More agent adapters** (Gemini CLI, Crush) on the shared library.
+- **More agent adapters** (Codex CLI, Gemini CLI, Crush) on the shared library.
 - **Packaging:** an npm/PyPI wrapper.
 - **Policy simulation:** dry-run a request corpus against a candidate bundle.
 
