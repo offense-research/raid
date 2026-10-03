@@ -61,6 +61,23 @@ First engineering handoff build of the open-source MVP.
     Aider commits on your behalf
   - Codex CLI: `raid-exec` for shell commands plus the shared MCP server for
     `raid_check`/`raid_pending`
+- Six more coding-agent adapters on the shared `raidlib`
+  - Charm Crush (`integrations/crush/`): a `PreToolUse` hook in `crush.json`
+    that blocks with exit status 2 on `deny`/`require_approval`
+  - OpenCode (`integrations/opencode/`): a `tool.execute.before` plugin that
+    blocks by throwing, reaching the shared classifier through `raid-check`
+  - OpenClaw (`integrations/openclaw/`): a `before_tool_call` plugin returning
+    `{block: true, blockReason}` (manifest + ESM package included)
+  - Hermes (`integrations/hermes/`): a native `plugin.yaml` + `register(ctx)`
+    plugin whose `pre_tool_call` hook returns `{"action": "block", ...}`
+  - Pi and omp (`integrations/pi/`, `integrations/omp/`): Claude Code-shaped
+    `PreToolUse` hooks answering with `permissionDecision` and exit 2
+  - All set `RAID_PROVIDER` so the audit trail names the real caller, and all
+    fail closed when raidd is unreachable
+- `raid-check` (`integrations/cli/raid-check.py`): a JSON-verdict bridge for
+  hooks that run in a JavaScript runtime; maps host tool names onto the shared
+  classifier and prints `{effect, reason_code, reason, approval}`
+  (exit 0 allow / 126 deny / 125 require_approval)
 - Shared adapter library (`integrations/lib/raidlib.py`): the HTTP-over-unix
   client and the shell-command classifier now live in one place reused by every
   agent adapter

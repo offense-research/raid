@@ -1,0 +1,5 @@
+name: raid-guard
+version: 0.1.0
+description: Gate Hermes tool calls with the Raid policy engine (pre_tool_call).
+provides_hooks:
+  - pre_tool_call

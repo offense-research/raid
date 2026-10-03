@@ -209,6 +209,8 @@ For Cursor, copy `integrations/cursor/hooks.example.json` to
 `~/.cursor/hooks.json` and point the command paths at your checkout. VS Code and
 Windsurf use their own `settings.example.json` / `hooks.example.json`; terminal
 agents (Aider, Codex CLI) go through the `raid-exec` shim in `integrations/cli/`.
+Crush, OpenCode, OpenClaw, Hermes, Pi, and omp each have their own adapter under
+`integrations/` (a hook or a plugin, per agent).
 Every adapter shares `integrations/lib/raidlib.py`; see `integrations/*/README.md`.
 
 ### 7. Connect and secure clients
@@ -281,8 +283,9 @@ Single Go module (`github.com/offense-research/raid`):
 - `core/server` — daemon boot; `core/cli` — the `raid` command surface
 - `pkg/raidclient` — Go client for the CLI, TUI, and proxies
 - `integrations/` — coding-agent adapters (Claude Code, Cursor, VS Code,
-  Windsurf, Aider, Codex CLI) + shared `lib/raidlib.py` and the `cli/`
-  `raid-exec` shim · `skills/` — drop-in provisioning skill · `api/` — OpenAPI
+  Windsurf, Aider, Codex CLI, Crush, OpenCode, OpenClaw, Hermes, Pi, omp) +
+  shared `lib/raidlib.py` and the `cli/`
+  `raid-exec` / `raid-check` shims · `skills/` — drop-in provisioning skill · `api/` — OpenAPI
   and JSON schemas · `docs/` — threat model, policy language, approvals, Jev,
   performance · `examples/` — demo policy + requests
 
@@ -392,11 +395,27 @@ agents with no pre-tool hook API are gated through the shared `raid-exec` shim
 (`integrations/cli/`), which runs a command only when Raid allows it; Codex CLI
 also picks up the shared MCP server for `raid_check`/`raid_pending`.
 
+**Crush** (`integrations/crush/`): a `PreToolUse` hook in `crush.json` that
+blocks with exit status 2 on `deny`/`require_approval`.
+
+**OpenCode** (`integrations/opencode/`): a `tool.execute.before` plugin that
+blocks by throwing; it reaches the shared classifier through the `raid-check`
+helper.
+
+**OpenClaw** (`integrations/openclaw/`): a `before_tool_call` plugin returning
+`{block: true, blockReason}`.
+
+**Hermes** (`integrations/hermes/`): a native Hermes plugin whose
+`pre_tool_call` hook returns `{"action": "block", "message": ...}`.
+
+**Pi / omp** (`integrations/pi/`, `integrations/omp/`): Claude Code-shaped
+`PreToolUse` hooks answering with `permissionDecision` (exit 2 blocks).
+
 See each adapter's README for details and security invariants.
 
 ## Roadmap
 
-- **More agent adapters** (Gemini CLI, Crush) on the shared library.
+- **More agent adapters** (Gemini CLI, Amp, Goose) on the shared library.
 - **Packaging:** an npm/PyPI wrapper.
 - **Policy simulation:** dry-run a request corpus against a candidate bundle.
 

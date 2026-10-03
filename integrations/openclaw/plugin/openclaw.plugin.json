@@ -1,0 +1,8 @@
+{
+  "id": "raid-guard",
+  "name": "Raid guard",
+  "version": "0.1.0",
+  "description": "Gate OpenClaw tool calls with the Raid policy engine.",
+  "author": "offense-research",
+  "license": "Apache-2.0"
+}

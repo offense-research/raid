@@ -1,0 +1,13 @@
+{
+  "//": "Raid x Charm Crush. Copy the hooks block into .crush.json (project root) or ~/.config/crush/crush.json (global). Relative command paths resolve against your working directory, so a GLOBAL config must use an absolute path.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "name": "raid-gate",
+        "matcher": "^(bash|shell|execute|edit|multiedit|write|create|view|read|ls|grep|glob|fetch|mcp_.*)$",
+        "command": "python3 /abs/path/raid/integrations/crush/hook_gate.py",
+        "timeout": 30
+      }
+    ]
+  }
+}

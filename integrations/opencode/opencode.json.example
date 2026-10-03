@@ -1,0 +1,5 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "//": "Raid x OpenCode. Either rely on auto-loading (put raid-guard.js in .opencode/plugins/ or ~/.config/opencode/plugins/) or list it explicitly in the plugin array below.",
+  "plugin": ["/abs/path/raid/integrations/opencode/plugin/raid-guard.js"]
+}
