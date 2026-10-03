@@ -1,0 +1,8 @@
+{
+  "name": "raid-guard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "description": "Raid guard: gate OpenClaw tool calls with the Raid policy engine."
+}

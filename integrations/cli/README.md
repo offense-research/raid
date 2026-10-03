@@ -34,6 +34,33 @@ install -Dm755 integrations/cli/raid-exec.py ~/.local/bin/raid-exec
 
 Then call it wherever the agent would otherwise run a shell command directly.
 
+## `raid-check` — judge a tool call (JSON verdict)
+
+`raid-check.py` is the companion for hosts that run their guardrail hooks in a
+JavaScript runtime (OpenCode, OpenClaw) and cannot import the Python classifier.
+It reads one tool call as JSON on stdin, builds the normalized Raid action, and
+prints a JSON verdict:
+
+```sh
+echo '{"tool_name":"bash","tool_input":{"command":"rm -rf /"},"cwd":"."}' \
+  | raid-check --provider opencode
+# {"effect":"deny","reason_code":"POLICY_DENY","reason":"blocked by policy (POLICY_DENY)"}
+```
+
+| verdict | exit |
+|---|---|
+| allow | 0 |
+| deny | 126 |
+| require_approval | 125 |
+
+It maps common host tool names (`read`, `write`, `edit`, `terminal`, …) onto the
+classifier's slugs, and a caller may override with a `tool_aliases` object in the
+payload. `--dry-run` prints the normalized action instead of deciding.
+
+```sh
+install -Dm755 integrations/cli/raid-check.py ~/.local/bin/raid-check
+```
+
 ## Environment
 
 | var | meaning | default |

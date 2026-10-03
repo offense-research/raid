@@ -1,0 +1,16 @@
+{
+  "//": "Raid x omp (Oh My Pi). Claude Code-shaped hook config, read by the pi-yaml-hooks / pi-hooks runners that also cover OMP. Point the command at your checkout.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "bash|shell|terminal|edit|multiedit|write|read|view|fetch|mcp_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /abs/path/raid/integrations/omp/hook_gate.py"
+          }
+        ]
+      }
+    ]
+  }
+}

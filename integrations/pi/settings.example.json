@@ -1,0 +1,16 @@
+{
+  "//": "Raid x Pi. Claude Code-shaped hook config. The @fyeeme/pi-hooks runner reads ~/.pi/agent/hook.json (or project .pi/hook.json); @hsingjui/pi-hooks reads the same `hooks` block from its Pi settings. Point the command at your checkout.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "bash|shell|terminal|edit|multiedit|write|read|view|fetch|mcp_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /abs/path/raid/integrations/pi/hook_gate.py"
+          }
+        ]
+      }
+    ]
+  }
+}
