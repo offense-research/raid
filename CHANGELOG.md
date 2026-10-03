@@ -48,6 +48,11 @@ First engineering handoff build of the open-source MVP.
     Cursor's permission object; `require_approval` is answered as deny with the
     approval id (never Cursor's `ask`), keeping approval inside Raid
   - `hooks.example.json` for `.cursor/hooks.json`
+- More coding-agent adapters on the shared `raidlib`
+  - VS Code (`integrations/vscode/`) `PreToolUse` hook
+  - Windsurf Cascade hooks (`integrations/windsurf/`)
+  - `raidlib.provider()` lets each adapter record the real caller
+    (`RAID_PROVIDER`), defaulting to `claude-code` as before
 - Shared adapter library (`integrations/lib/raidlib.py`): the HTTP-over-unix
   client and the shell-command classifier now live in one place reused by every
   agent adapter
