@@ -18,6 +18,16 @@ First engineering handoff build of the open-source MVP.
   - the README gained an **Install with your agent** section carrying the
     paste-prompt, and `PROMPT.md` keeps the full version plus a local-checkout
     fallback
+- Codex and ChatGPT desktop app coverage
+  - `integrations/codex/` now covers every Codex host rather than the CLI alone:
+    the Codex CLI, the Codex IDE extension, and Codex in the ChatGPT desktop app
+    share `~/.codex/config.toml` (MCP servers) and `~/.agents/skills` (skills),
+    so one install reaches all three
+  - `integrations/codex/install.sh` gained `--write-skill`, installing the raid
+    skill into `~/.agents/skills/raid/` alongside `--write-config`
+  - `skills/raid/agents/openai.yaml` supplies the display name, short
+    description, accent colour, and default prompt the ChatGPT desktop app
+    shows in its Skills list
 - TCP listener hardening for remote/team deployments
   - `--tcp-token` (or `RAID_TCP_TOKEN`) requires a bearer token (also accepted
     via `X-Raid-Token`, constant-time compared)

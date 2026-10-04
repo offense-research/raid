@@ -71,9 +71,10 @@ without making developers wait on routine work.
 
 ## Install with your agent
 
-Copy the prompt below into Claude Code, Codex, Cursor, or any other coding
-agent. It installs the Raid skill and has the agent provision a guarded local
-deployment for you:
+Copy the prompt below into Claude Code, Cursor, Codex (the CLI, the IDE
+extension, or Codex in the ChatGPT desktop app), or any other coding agent. It
+installs the Raid skill and has the agent provision a guarded local deployment
+for you:
 
 ```text
 Install the Raid skill and use it for this project.
@@ -83,7 +84,14 @@ If you're in Claude Code:
     claude plugin install raid@offense-research
 In another agent:
     npx skills add offense-research/raid --skill raid
-Use one installation method. The skill text is at
+Use one installation method.
+
+Codex hosts - the CLI, the IDE extension, and Codex in the ChatGPT desktop app -
+share one configuration, so the skill above covers all three. To also add the
+raid_check / raid_pending guardrail, from a checkout:
+    integrations/codex/install.sh --write-config --write-skill
+
+The skill text is at
 https://github.com/offense-research/raid/blob/main/skills/raid/SKILL.md
 (raw: https://raw.githubusercontent.com/offense-research/raid/main/skills/raid/SKILL.md).
 
@@ -116,7 +124,8 @@ export RAID_SOCKET="${XDG_STATE_HOME:-$HOME/.local/state}/offense/raid/raid.sock
 raid doctor        # confirms the daemon is up and a policy is active
 ```
 
-**3. Point your coding agent at it.** Most people use Claude Code or Codex CLI.
+**3. Point your coding agent at it.** Most people use Claude Code or Codex (the
+CLI, the IDE extension, or Codex in the ChatGPT desktop app).
 The adapters live in the repo, so grab a checkout first:
 
 ```sh
@@ -131,10 +140,12 @@ Claude Code - pre-tool-call hook plus an MCP guardrail:
 RAID_SOLO=1 integrations/claude-code/install.sh
 ```
 
-Codex CLI - MCP guardrail plus the `raid-exec` shim for shell commands:
+Codex - MCP guardrail plus the `raid-exec` shim. The CLI, the IDE extension, and
+Codex in the ChatGPT desktop app share this one configuration, so this single
+command covers all three:
 
 ```sh
-integrations/codex/install.sh --write-config
+integrations/codex/install.sh --write-config --write-skill
 ```
 
 That is the whole setup. Routine actions pass straight through; anything
@@ -283,7 +294,7 @@ cd integrations/claude-code && RAID_ENV=development ./install.sh   # Claude Code
 For Cursor, copy `integrations/cursor/hooks.example.json` to
 `~/.cursor/hooks.json` and point the command paths at your checkout. VS Code and
 Windsurf use their own `settings.example.json` / `hooks.example.json`; terminal
-agents (Aider, Codex CLI) go through the `raid-exec` shim in `integrations/cli/`.
+agents (Aider, Codex) go through the `raid-exec` shim in `integrations/cli/`.
 Crush, OpenCode, OpenClaw, Hermes, Pi, and omp each have their own adapter under
 `integrations/` (a hook or a plugin, per agent).
 Every adapter shares `integrations/lib/raidlib.py`; see `integrations/*/README.md`.
@@ -358,7 +369,8 @@ Single Go module (`github.com/offense-research/raid`):
 - `core/server` — daemon boot; `core/cli` — the `raid` command surface
 - `pkg/raidclient` — Go client for the CLI, TUI, and proxies
 - `integrations/` — coding-agent adapters (Claude Code, Cursor, VS Code,
-  Windsurf, Aider, Codex CLI, Crush, OpenCode, OpenClaw, Hermes, Pi, omp) +
+  Windsurf, Aider, Codex (CLI, IDE extension, ChatGPT desktop app), Crush,
+  OpenCode, OpenClaw, Hermes, Pi, omp) +
   shared `lib/raidlib.py` and the `cli/`
   `raid-exec` / `raid-check` shims · `skills/` — drop-in provisioning skill · `api/` — OpenAPI
   and JSON schemas · `docs/` — threat model, policy language, approvals, Jev,
@@ -465,10 +477,13 @@ Code's `permissionDecision` object, mapped from the same normalization library.
 `pre_run_command`, `pre_write_code`, `pre_read_code`, and `pre_mcp_tool_use`
 that blocks with exit status 2 on `deny`/`require_approval`.
 
-**Aider / Codex CLI** (`integrations/aider/`, `integrations/codex/`): terminal
-agents with no pre-tool hook API are gated through the shared `raid-exec` shim
-(`integrations/cli/`), which runs a command only when Raid allows it; Codex CLI
-also picks up the shared MCP server for `raid_check`/`raid_pending`.
+**Aider / Codex** (`integrations/aider/`, `integrations/codex/`): agents with no
+pre-tool hook API are gated through the shared `raid-exec` shim
+(`integrations/cli/`), which runs a command only when Raid allows it. Codex also
+picks up the shared MCP server for `raid_check`/`raid_pending` — and because the
+Codex CLI, the Codex IDE extension, and Codex in the ChatGPT desktop app read the
+same `~/.codex/config.toml` and `~/.agents/skills`, that one install covers all
+three.
 
 **Crush** (`integrations/crush/`): a `PreToolUse` hook in `crush.json` that
 blocks with exit status 2 on `deny`/`require_approval`.
