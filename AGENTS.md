@@ -203,7 +203,12 @@ library lives in `integrations/lib/`; each agent gets a thin adapter.
   `analyze_bash()` classifier. Bash/Write/Read map to `shell.read|write|delete`,
   `git.force_push`, `container.exec`, `package.install`, … and compound shell
   commands also emit `destructive` / `exfil` / `protected_branch` / `branch` /
-  `verb` / `target` / `command` attributes for policy to match precisely.
+  `verb` / `target` / `command` attributes for policy to match precisely, plus
+  the session guardrail set — `egress`, `outbound_secret`, `tainted_egress`,
+  `untrusted_source`, `session_tracked` — from a per-session taint ledger
+  (`ledger_load` / `ledger_update` / `session_guard_attrs`, env `RAID_SESSION` /
+  `RAID_LEDGER_DIR` / `RAID_NO_LEDGER`). raidd stays stateless: the ledger
+  belongs to the adapter and the conclusion travels in the request attributes.
   Adapters add `integrations/lib` to `sys.path`.
 
 ### Claude Code (`integrations/claude-code/`)

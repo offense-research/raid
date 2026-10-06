@@ -19,6 +19,7 @@ import os
 import re
 import shlex
 import socket
+import time
 
 # ---------------------------------------------------------------------------
 # raidd HTTP client (unix socket)
@@ -183,6 +184,214 @@ _SECRET_RX = re.compile(
 _NETWORK_VERBS = {"curl", "wget", "nc", "ncat", "netcat", "scp", "sftp", "rsync", "ssh", "telnet", "ftp"}
 _PROTECTED_BRANCHES = {"main", "master", "trunk", "release", "production", "prod"}
 
+# ---------------------------------------------------------------------------
+# Egress & exfiltration guardrails, and session taint
+# ---------------------------------------------------------------------------
+#
+# Two things sit on top of the filename-based secret regex above:
+#
+#   * secret *values* -- the shapes a credential takes once it is on a command
+#     line, in a URL, or in a request body. The filename regex catches "the
+#     agent touched .env"; these catch "the agent is about to send the key".
+#   * a per-session taint ledger -- cross-call context that no single command
+#     can express. Reading credential material, or pulling in outside content,
+#     marks the session; a later egress or a later privileged action is then
+#     judged by the policy in that light.
+#
+# raidd itself stays stateless. The session belongs to the adapter, and the
+# ledger is how it is carried between calls. Both are additions to the
+# free-form resource.attributes string map, so no schema change is involved.
+
+# Credential *value* shapes. These match case-sensitively against the original
+# text: base64url and the provider prefixes are case-bearing, so lowercasing
+# the payload first would silently stop matching them.
+_SECRET_VALUE_RX = [
+    re.compile(r"sk-[A-Za-z0-9_-]{20,}"),                       # OpenAI
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"),                  # GitHub
+    re.compile(r"github_pat_[A-Za-z0-9_]{22,}"),                # GitHub fine-grained
+    re.compile(r"glpat-[A-Za-z0-9_-]{20,}"),                    # GitLab
+    re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),                # Slack
+    re.compile(r"AKIA[0-9A-Z]{16}"),                            # AWS access key id
+    re.compile(r"AIza[0-9A-Za-z_-]{35}"),                       # Google API key
+    re.compile(r"npm_[A-Za-z0-9]{36}"),                         # npm
+    re.compile(r"pypi-[A-Za-z0-9_-]{50,}"),                     # PyPI
+    re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),  # JWT
+    re.compile(r"-----BEGIN[A-Z ]*PRIVATE KEY-----"),           # PEM private key
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]{20,}=*", re.I),   # bearer token
+    # name = <long opaque value>: requires both a letter and a digit, so prose
+    # like `token: documentation` does not trip it.
+    re.compile(
+        r"(?i)\b(api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|"
+        r"private[_-]?key|passwd|password)\b[\"']?\s*[:=]\s*[\"']?"
+        r"(?=[A-Za-z0-9_\-/+]*[0-9])(?=[A-Za-z0-9_\-/+]*[A-Za-z])[A-Za-z0-9_\-/]{20,}"
+    ),
+]
+
+# Outbound network text in a shell command.
+_NET_EGRESS_RX = re.compile(
+    r"\b(curl|wget|nc|ncat|netcat|scp|sftp|rsync|ssh|telnet|ftp|"
+    r"invoke-webrequest|invoke-restmethod)\b"
+)
+
+# Operations whose effect is durable, privileged, or credential-bearing: what
+# an injected instruction reaches for. Ordinary reads of source are not here.
+_PRIVILEGED_OPS = frozenset({
+    "shell.execute", "shell.write", "shell.delete",
+    "filesystem.write", "filesystem.delete",
+    "git.push", "git.force_push", "git.rewrite",
+    "package.install",
+    "service.exec", "container.exec",
+    "db.mutate", "cloud.mutate",
+})
+
+# How long a session's taint survives without activity: long enough to cover a
+# working session, short enough that a stale file cannot haunt a machine.
+_LEDGER_TTL_SECONDS = 12 * 3600
+
+
+def _ledger_enabled():
+    return os.environ.get("RAID_NO_LEDGER", "").lower() not in ("1", "true", "yes")
+
+
+def _secret_values(text):
+    """True when text carries something shaped like a credential value."""
+    if not text:
+        return False
+    return any(rx.search(text) for rx in _SECRET_VALUE_RX)
+
+
+def _segment_egress(toks, joined):
+    """True when a segment sends data to the network."""
+    if any(os.path.basename(t) in _NETWORK_VERBS for t in toks):
+        return True
+    return bool(_NET_EGRESS_RX.search(joined))
+
+
+def _is_privileged(op, attrs):
+    """Whether an operation is worth gating once the session is tainted."""
+    if op in _PRIVILEGED_OPS:
+        return True
+    # Touching credential material is privileged whatever the operation slug:
+    # an injected "print the .env" is the canonical credential-access move.
+    return attrs.get("secret") == "true"
+
+
+def _ledger_key():
+    """The key the taint ledger is filed under.
+
+    ``RAID_SESSION`` when the host sets it. Otherwise a stable key derived from
+    principal + agent + working directory, so taint still spans the calls of
+    one session without the host wiring anything. It is deliberately *not* the
+    principal's own session_id: that field falls back to a fresh random value
+    per call, which would file every call under a new key and turn cross-call
+    taint into a silent no-op.
+    """
+    sid = os.environ.get("RAID_SESSION", "").strip()
+    if sid:
+        return "session:" + sid
+    p = principal()
+    cwd = os.environ.get("RAID_CWD") or os.getcwd()
+    return "principal:%s:%s:%s" % (p["subject_id"], p["agent_id"], cwd)
+
+
+def _ledger_dir():
+    base = os.environ.get("RAID_LEDGER_DIR")
+    if not base:
+        state = os.environ.get("XDG_STATE_HOME") or os.path.join(
+            os.path.expanduser("~"), ".local", "state"
+        )
+        base = os.path.join(state, "offense", "raid", "sessions")
+    return base
+
+
+def _ledger_path(key):
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", key)[:160] or "default"
+    return os.path.join(_ledger_dir(), safe + ".json")
+
+
+def ledger_load(key):
+    """Read a session's taint. Returns (state, readable).
+
+    Never raises. An unreadable ledger is returned as *fully* tainted so a
+    caller cannot mistake an unknown session for a clean one; an absent or
+    expired ledger is a clean session, which is the honest reading of
+    "nothing has happened yet".
+    """
+    state = {"secret_touched": False, "untrusted": False}
+    if not _ledger_enabled():
+        return state, False
+    try:
+        with open(_ledger_path(key), "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except FileNotFoundError:
+        return state, True
+    except Exception:
+        return {"secret_touched": True, "untrusted": True}, False
+    if not isinstance(raw, dict):
+        return {"secret_touched": True, "untrusted": True}, False
+    updated = raw.get("updated_at")
+    if isinstance(updated, (int, float)) and (time.time() - updated) > _LEDGER_TTL_SECONDS:
+        return state, True
+    if raw.get("secret_touched") is True:
+        state["secret_touched"] = True
+    if raw.get("untrusted") is True:
+        state["untrusted"] = True
+    return state, True
+
+
+def ledger_update(key, secret_touched=False, untrusted=False):
+    """Fold this call's effects into the session ledger. Never raises."""
+    if not _ledger_enabled() or not (secret_touched or untrusted):
+        return True
+    state, _ok = ledger_load(key)
+    if secret_touched:
+        state["secret_touched"] = True
+    if untrusted:
+        state["untrusted"] = True
+    try:
+        d = _ledger_dir()
+        os.makedirs(d, mode=0o700, exist_ok=True)
+        path = _ledger_path(key)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({
+                "secret_touched": state["secret_touched"],
+                "untrusted": state["untrusted"],
+                "updated_at": time.time(),
+            }, fh)
+        os.replace(tmp, path)
+        return True
+    except Exception:
+        # A ledger that cannot be written fails closed at the policy layer:
+        # the next call reads an unreadable ledger and is judged tainted.
+        return False
+
+
+def session_guard_attrs(op, attrs, egress=False, outbound_secret=False,
+                        secret_touched=False, untrusted_input=False):
+    """Session-scoped guardrail attributes for one call, and the ledger step.
+
+    The ledger is read *before* this call's own effects are recorded, so a
+    credential read or an untrusted fetch taints what happens next -- never the
+    call that did it.
+    """
+    key = _ledger_key()
+    state, readable = ledger_load(key)
+    out = {
+        "egress": "true" if egress else "false",
+        "outbound_secret": "true" if (egress and outbound_secret) else "false",
+        "tainted_egress": "true" if (egress and state["secret_touched"]) else "false",
+        "untrusted_source": "true"
+        if (_is_privileged(op, attrs) and state["untrusted"])
+        else "false",
+        # Surfaces the honest limit: when the host neither sets RAID_SESSION nor
+        # offers a writable ledger, cross-call taint is not in effect, and a
+        # policy can say so rather than silently trusting nothing.
+        "session_tracked": "true" if readable else "false",
+    }
+    ledger_update(key, secret_touched=secret_touched, untrusted=untrusted_input)
+    return out
+
 
 def _split_segments(cmd):
     """Split a shell command on control operators (loose, quote-unaware)."""
@@ -308,11 +517,18 @@ def classify_segment(segment):
             op, fx = "shell.read", "read"
         else:
             op, fx = "shell.execute", "execute"
+    egress = _segment_egress(toks, low)
     attrs = {
         "verb": verb,
         "destructive": "true" if _segment_destructive(toks, low) else "false",
         "exfil": "true" if _segment_exfil(toks, low) else "false",
         "protected_branch": _protected_branch(toks),
+        "egress": "true" if egress else "false",
+        # Matched against the original-case segment: these patterns are
+        # case-bearing (base64url, provider prefixes).
+        "outbound_secret": "true"
+        if (egress and _secret_values(segment))
+        else "false",
     }
     branch = _branch_of(toks)
     if branch:
@@ -344,8 +560,9 @@ def analyze_bash(cmd):
 
     Returns (operation, effect, resource_type, attributes). The operation is
     taken from the most consequential segment; ``destructive``/``exfil``/
-    ``protected_branch`` attributes are set to explicit "true"/"false" strings
-    so policies can match them without failing on a missing key.
+    ``protected_branch``/``egress``/``outbound_secret`` attributes are set to
+    explicit "true"/"false" strings so policies can match them without failing
+    on a missing key.
     """
     segments = _split_segments(cmd)
     if not segments:
@@ -353,6 +570,8 @@ def analyze_bash(cmd):
     best = None
     destructive = False
     exfil = False
+    egress = False
+    outbound_secret = False
     protected = "false"
     branch = ""
     verb = ""
@@ -364,6 +583,10 @@ def analyze_bash(cmd):
             destructive = True
         if attrs.get("exfil") == "true":
             exfil = True
+        if attrs.get("egress") == "true":
+            egress = True
+        if attrs.get("outbound_secret") == "true":
+            outbound_secret = True
         if attrs.get("protected_branch") == "true":
             protected = "true"
         if not branch and attrs.get("branch"):
@@ -373,11 +596,15 @@ def analyze_bash(cmd):
             best = (op, fx, rtype, rank)
     op, fx, rtype, _ = best
     # Cross-segment exfiltration: a secret referenced anywhere plus a network
-    # command or outbound pipe anywhere in the compound command.
+    # command or outbound pipe anywhere in the compound command. The second
+    # clause extends this from "named a credential path" to "carried an actual
+    # credential value", which the filename regex alone would miss.
     joined_all = cmd.lower()
-    if not exfil and _SECRET_RX.search(joined_all):
-        if re.search(r"\b(curl|wget|nc|ncat|netcat|scp|sftp|rsync|ssh|ftp|telnet)\b", joined_all):
+    if not exfil and (_SECRET_RX.search(joined_all) or _secret_values(cmd)):
+        if _NET_EGRESS_RX.search(joined_all):
             exfil = True
+    if egress:
+        outbound_secret = outbound_secret or _secret_values(cmd)
     if destructive and _EFFECT_RANK.get(fx, 0) < _EFFECT_RANK["delete"]:
         op, fx = "shell.delete", "delete"
     attrs = {
@@ -385,6 +612,8 @@ def analyze_bash(cmd):
         "destructive": "true" if destructive else "false",
         "exfil": "true" if exfil else "false",
         "protected_branch": protected,
+        "egress": "true" if egress else "false",
+        "outbound_secret": "true" if (egress and outbound_secret) else "false",
     }
     if branch:
         attrs["branch"] = branch
@@ -393,7 +622,10 @@ def analyze_bash(cmd):
 
 
 def _base_attrs(cmd, extra):
-    attrs = {"verb": "", "destructive": "false", "exfil": "false", "protected_branch": "false"}
+    attrs = {
+        "verb": "", "destructive": "false", "exfil": "false",
+        "protected_branch": "false", "egress": "false", "outbound_secret": "false",
+    }
     attrs["command"] = (cmd or "").strip()[:512]
     attrs.update(extra)
     return attrs
@@ -451,6 +683,40 @@ def tool_to_action(tool_name, tool_input, request_id, environment="development",
     if cwd:
         attrs.setdefault("cwd", cwd)
     attrs.update(bash_attrs)
+
+    # A path argument aimed at credential material is marked the same way the
+    # shell classifier marks it from the command text; without this a file tool
+    # pointed at .env would go unremarked.
+    if rtype == "path":
+        attrs.setdefault("secret", "false")
+        if resource_id and _SECRET_RX.search(str(resource_id).lower()):
+            attrs["secret"] = "true"
+
+    # --- session guardrails: egress/exfiltration and untrusted-input taint ---
+    cmd_text = str(tin.get("command") or tin.get("description") or "")
+    egress = bash_attrs.get("egress") == "true"
+    outbound_secret = bash_attrs.get("outbound_secret") == "true"
+    secret_touched = attrs.get("secret") == "true" or bool(
+        _SECRET_RX.search(cmd_text.lower())
+    )
+    untrusted_input = False
+
+    if tool_name in ("websearch", "webfetch"):
+        # Pulling in outside content is both the untrusted-input case the
+        # injection guardrail keys on, and egress in its own right.
+        egress = True
+        untrusted_input = True
+        outbound_secret = outbound_secret or _secret_values(str(resource_id))
+        secret_touched = secret_touched or _secret_values(str(resource_id))
+
+    attrs.update(session_guard_attrs(
+        operation, attrs,
+        egress=egress,
+        outbound_secret=outbound_secret,
+        secret_touched=secret_touched,
+        untrusted_input=untrusted_input,
+    ))
+
     environment = environment or os.environ.get("RAID_ENV", "development")
     auth = principal()
     action = {

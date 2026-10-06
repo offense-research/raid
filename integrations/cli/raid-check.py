@@ -23,9 +23,15 @@ Options:
   --dry-run         print the normalized Raid action instead of deciding
 
 Environment:
-  RAID_SOCKET     raidd unix socket (default /run/offense/raid/raid.sock)
-  RAID_ENV        classified environment (default development)
-  RAID_PROVIDER   provider recorded in the action (default claude-code)
+    RAID_SOCKET     raidd unix socket (default /run/offense/raid/raid.sock)
+    RAID_ENV        classified environment (default development)
+    RAID_PROVIDER   provider recorded in the action (default claude-code)
+    RAID_SESSION    session id the taint ledger is keyed on. Without it the
+                    ledger falls back to principal+agent+cwd, so cross-call
+                    taint still works within one project.
+    RAID_LEDGER_DIR where session taint files live (default the XDG state dir)
+    RAID_NO_LEDGER  set to 1 to skip taint tracking entirely; the action then
+                    carries session_tracked=false rather than pretending
 
 A classification failure, an unreachable raidd, or an adapter error all fail
 closed: the verdict is `deny` and the exit status is 126 — never a silent allow.
@@ -133,6 +139,12 @@ def main(argv):
         tool_input = {}
     cwd = str(call.get("cwd") or os.environ.get("RAID_CWD") or os.getcwd())
     environment = args.environment or call.get("environment") or os.environ.get("RAID_ENV", "development")
+
+    # A dry run inspects the normalized request; it must not advance the
+    # session's taint ledger, so a preview cannot change what a later real call
+    # is judged against.
+    if args.dry_run:
+        os.environ["RAID_NO_LEDGER"] = "1"
 
     try:
         action = raidlib.tool_to_action(

@@ -8,6 +8,32 @@ First engineering handoff build of the open-source MVP.
 
 ### Added
 
+- Egress & exfiltration guardrails
+  - the shared classifier now detects credential *values* — OpenAI/GitHub/GitLab/
+    Slack/AWS/Google/npm/PyPI keys, JWTs, PEM private keys, bearer tokens, and
+    `key = <opaque>` assignments — not just credential *filenames*
+  - a new `egress` attribute marks any call that sends data to the network, and
+    `outbound_secret` marks egress whose payload carries a recognised
+    credential value
+  - `solo-dev-safe` and `review-only` deny `outbound_secret` outright; `ci-agent`
+    denies it too, and there is no confirmation tier for it because there is no
+    reading of "send this API key to that host" worth a keystroke
+- Indirect prompt-injection safeguards
+  - a per-session taint ledger (`ledger_load` / `ledger_update` /
+    `session_guard_attrs`) keyed on `RAID_SESSION`, falling back to
+    principal+agent+cwd, with a 12-hour TTL. An unreadable ledger is treated as
+    fully tainted — fail closed — and `session_tracked` is `false`, so a policy
+    can tell "clean session" from "no session tracking in effect"
+  - reading credential material marks the session, and a later egress emits
+    `tainted_egress`; the agent's own fetch/search tools mark the session, and a
+    later state-changing call emits `untrusted_source`
+  - `solo-dev-safe` confirms both; `ci-agent` denies `tainted_egress` (a pipeline
+    has no human to ask) and confirms `untrusted_source`
+  - raidd itself stays stateless: the ledger belongs to the adapter and the
+    conclusion travels in `resource.attributes`, so no schema change was needed
+    and older adapters that omit the attributes keep working
+  - env: `RAID_SESSION`, `RAID_LEDGER_DIR`, `RAID_NO_LEDGER`. `raid-check
+    --dry-run` sets the last, so previewing a request cannot taint a session
 - Copy-paste agent onboarding
   - the repository is now its own Claude Code plugin marketplace
     (`.claude-plugin/marketplace.json` + `.claude-plugin/plugin.json`), so
