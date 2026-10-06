@@ -80,6 +80,45 @@ context     context.timestamp source_product source_version source_request_id ta
 - Unknown variables/functions are compile errors (activation fails).
 - The `when` expression must type-check to `bool`.
 
+## Guardrail attributes
+
+`resource.attributes` is a free `map[string]string`, so an adapter can add
+classifications without a schema change. The shared classifier in
+`integrations/lib/raidlib.py` emits a fixed set for every tool call, and
+Raider's `internal/raider/classify.go` mirrors it, so one policy works under
+every adapter.
+
+| attribute | true when | intended use |
+|---|---|---|
+| `destructive` | the command is irreversible or wipes a system path | deny outright |
+| `exfil` | a credential path and a network verb appear in one command | deny outright |
+| `protected_branch` | the target is `main`/`master`/`release`/... | confirm history rewrites |
+| `secret` | the target path is `.env`, a private key, a credential store | confirm before touching |
+| `egress` | the call sends data to the network | pair with the two below |
+| `outbound_secret` | an outbound payload carries a recognised credential *value* | deny outright |
+| `tainted_egress` | the session handled credential material and this call egresses | confirm |
+| `untrusted_source` | the session read outside content and this call changes state | confirm |
+| `session_tracked` | the session ledger was readable | see below |
+
+Attributes are always present as the strings `"true"`/`"false"`, so a policy can
+write `resource.attributes.egress == "true"`. Keep the `has(...)` guard when a
+bundle may also run under an adapter that predates a given attribute.
+
+`egress`, `outbound_secret`, `tainted_egress` and `untrusted_source` are
+**session-scoped**. raidd itself is stateless, so the *adapter* keeps a small
+per-session taint ledger — keyed on `RAID_SESSION`, or principal+agent+cwd when
+the host sets nothing — and carries the conclusion in the request. The ledger is
+read before a call's own effects are recorded, so a credential read or an
+untrusted fetch taints what happens *next*, never the call that did it. Entries
+expire after 12 hours.
+
+An unreadable ledger is treated as fully tainted — fail closed — and
+`session_tracked` is `"false"`, which lets a policy tell "clean session" apart
+from "no session tracking in effect" rather than trusting a state it cannot see.
+
+Because `DENY` outranks every other effect, a `deny` on any of these attributes
+cannot be shadowed by an `allow` elsewhere in the bundle.
+
 ## Typed arguments
 
 Values are a closed union: `string`, `int64`, `uint64`, `bool`, `decimal`

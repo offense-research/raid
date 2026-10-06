@@ -32,6 +32,82 @@ rules:
       (has(resource.attributes.exfil) && resource.attributes.exfil == "true")
     effect: deny
 
+  # --- Egress & exfiltration ------------------------------------------------
+  # A pipeline has no human to ask, so anything that would be "confirm" for a
+  # solo engineer is a flat deny here: sending credentials out, or egressing
+  # from a build that has already handled them.
+  - id: deny-secret-egress
+    description: >-
+      Sending credential material off the machine, whether the key was read in
+      this command or earlier in the session.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.read
+        - filesystem.write
+        - network.fetch
+        - package.install
+        - git.push
+    when: >-
+      has(resource.attributes.outbound_secret) &&
+      resource.attributes.outbound_secret == "true"
+    effect: deny
+
+  - id: deny-tainted-egress
+    description: Egress from a build that has already handled credential material.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - shell.write
+        - shell.execute
+        - filesystem.read
+        - filesystem.write
+        - network.fetch
+    when: >-
+      has(resource.attributes.tainted_egress) &&
+      resource.attributes.tainted_egress == "true"
+    effect: deny
+
+  # --- Indirect prompt injection --------------------------------------------
+  # A state-changing step taken after the build pulled in outside content.
+  # Normal build traffic does not trip this: only the agent's own fetch/search
+  # tools mark a session as having read untrusted input.
+  - id: confirm-untrusted-source
+    description: >-
+      A state-changing action taken after the session read untrusted external
+      content.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - package.install
+        - service.exec
+        - container.exec
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      has(resource.attributes.untrusted_source) &&
+      resource.attributes.untrusted_source == "true"
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
   - id: allow-reads
     description: Read-only file access, inspection, and fetches.
     match:

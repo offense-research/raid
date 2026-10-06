@@ -37,6 +37,93 @@ rules:
         (action.operation == "git.force_push" || action.operation == "git.rewrite"))
     effect: deny
 
+  # --- Egress & exfiltration ------------------------------------------------
+  # The tier above catches a credential *path* paired with a network verb in a
+  # single command. These catch what no single command can express on its own.
+  #
+  # A recognised credential value on its way out is not approvable: there is no
+  # reading of "send this API key to that host" that one keystroke should wave
+  # through.
+  - id: deny-secret-egress
+    description: >-
+      Sending credential material off the machine, whether the key was read in
+      this command or earlier in the session.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.read
+        - filesystem.write
+        - network.fetch
+        - package.install
+        - git.push
+    when: >-
+      has(resource.attributes.outbound_secret) &&
+      resource.attributes.outbound_secret == "true"
+    effect: deny
+
+  # A credential was handled earlier in this session and now something is going
+  # out. Usually innocent, occasionally the whole attack - so ask, and bind the
+  # approval to this exact request.
+  - id: confirm-tainted-egress
+    description: Egress from a session that has already handled credential material.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - shell.write
+        - shell.execute
+        - filesystem.read
+        - filesystem.write
+        - network.fetch
+    when: >-
+      has(resource.attributes.tainted_egress) &&
+      resource.attributes.tainted_egress == "true"
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  # --- Indirect prompt injection --------------------------------------------
+  # Once the session has pulled in outside content, a privileged action is
+  # exactly what an injected instruction would be driving at. The judgement is
+  # deterministic and never depends on reading the content itself.
+  - id: confirm-untrusted-source
+    description: >-
+      A state-changing action taken after the session read untrusted external
+      content.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - package.install
+        - service.exec
+        - container.exec
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      has(resource.attributes.untrusted_source) &&
+      resource.attributes.untrusted_source == "true"
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
   # --- Reads are always fine ----------------------------------------------
   - id: allow-reads
     description: Read-only file access and safe shell inspection.

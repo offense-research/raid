@@ -153,3 +153,116 @@ func TestCIAgent(t *testing.T) {
 		t.Errorf("destructive: got %s want deny", got)
 	}
 }
+
+// attr builds a full attribute map for the guardrail cases below, so each case
+// states only what it is actually about.
+func attr(pairs ...string) map[string]string {
+	m := map[string]string{
+		"destructive":      "false",
+		"protected_branch": "false",
+		"exfil":            "false",
+		"egress":           "false",
+		"outbound_secret":  "false",
+		"tainted_egress":   "false",
+		"untrusted_source": "false",
+	}
+	for i := 0; i+1 < len(pairs); i += 2 {
+		m[pairs[i]] = pairs[i+1]
+	}
+	return m
+}
+
+func TestSoloDevSafeEgressGuardrails(t *testing.T) {
+	outbound := attr("egress", "true", "outbound_secret", "true")
+	tainted := attr("egress", "true", "tainted_egress", "true")
+	plain := attr("egress", "true")
+
+	// A recognised credential value on the way out is denied outright.
+	if got := evalPreset(t, "solo-dev-safe", req(t, "network.fetch", "read", "development", outbound)); got != "deny" {
+		t.Errorf("outbound secret: got %s want deny", got)
+	}
+	if got := evalPreset(t, "solo-dev-safe", req(t, "shell.read", "read", "development", outbound)); got != "deny" {
+		t.Errorf("outbound secret via shell.read: got %s want deny", got)
+	}
+	// Egress from a session that has already handled credentials asks a human.
+	if got := evalPreset(t, "solo-dev-safe", req(t, "network.fetch", "read", "development", tainted)); got != "require_approval" {
+		t.Errorf("tainted egress: got %s want require_approval", got)
+	}
+	// Plain egress is left alone: gating every fetch would make the guardrail
+	// unusable and teach the operator to approve without reading.
+	if got := evalPreset(t, "solo-dev-safe", req(t, "network.fetch", "read", "development", plain)); got != "allow" {
+		t.Errorf("plain egress: got %s want allow", got)
+	}
+}
+
+func TestSoloDevSafeUntrustedSource(t *testing.T) {
+	untrusted := attr("untrusted_source", "true")
+
+	// A state-changing action after the session read outside content.
+	for _, tc := range []struct{ op, fx string }{
+		{"git.push", "write"},
+		{"shell.delete", "delete"},
+		{"filesystem.write", "write"},
+		{"cloud.mutate", "write"},
+	} {
+		got := evalPreset(t, "solo-dev-safe", req(t, tc.op, tc.fx, "development", untrusted))
+		if got != "require_approval" {
+			t.Errorf("%s after untrusted input: got %s want require_approval", tc.op, got)
+		}
+	}
+	// Reading is not a state-changing action; the taint alone must not gate it.
+	if got := evalPreset(t, "solo-dev-safe", req(t, "shell.read", "read", "development", untrusted)); got != "allow" {
+		t.Errorf("read after untrusted input: got %s want allow", got)
+	}
+}
+
+func TestCIAgentEgressGuardrails(t *testing.T) {
+	outbound := attr("egress", "true", "outbound_secret", "true")
+	tainted := attr("egress", "true", "tainted_egress", "true")
+	// A pipeline has no human to ask, so both are a flat deny rather than a
+	// confirmation that would simply hang the build.
+	if got := evalPreset(t, "ci-agent", req(t, "network.fetch", "read", "development", outbound)); got != "deny" {
+		t.Errorf("ci outbound secret: got %s want deny", got)
+	}
+	if got := evalPreset(t, "ci-agent", req(t, "network.fetch", "read", "development", tainted)); got != "deny" {
+		t.Errorf("ci tainted egress: got %s want deny", got)
+	}
+	// The agent's own fetch tooling is untouched when nothing is being carried.
+	if got := evalPreset(t, "ci-agent", req(t, "network.fetch", "read", "development", attr("egress", "true"))); got != "allow" {
+		t.Errorf("ci plain egress: got %s want allow", got)
+	}
+}
+
+func TestCIAgentUntrustedSource(t *testing.T) {
+	if got := evalPreset(t, "ci-agent", req(t, "shell.execute", "execute", "development", attr("untrusted_source", "true"))); got != "require_approval" {
+		t.Errorf("ci exec after untrusted input: got %s want require_approval", got)
+	}
+	// An ordinary build step carries no taint and must stay allowed.
+	if got := evalPreset(t, "ci-agent", req(t, "shell.execute", "execute", "development", attr())); got != "allow" {
+		t.Errorf("ci plain build: got %s want allow", got)
+	}
+}
+
+func TestReviewOnlyEgressGuardrail(t *testing.T) {
+	outbound := attr("egress", "true", "outbound_secret", "true")
+	if got := evalPreset(t, "review-only", req(t, "network.fetch", "read", "development", outbound)); got != "deny" {
+		t.Errorf("review-only outbound secret: got %s want deny", got)
+	}
+	// Reviewing still fetches.
+	if got := evalPreset(t, "review-only", req(t, "network.fetch", "read", "development", attr("egress", "true"))); got != "allow" {
+		t.Errorf("review-only plain fetch: got %s want allow", got)
+	}
+}
+
+// TestPresetsTolerateMissingGuardrailAttrs pins the compatibility property: a
+// policy must not break when a caller does not emit the new attributes, since
+// older adapters predate them.
+func TestPresetsTolerateMissingGuardrailAttrs(t *testing.T) {
+	legacy := map[string]string{"destructive": "false", "exfil": "false"}
+	for _, name := range []string{"solo-dev-safe", "ci-agent", "review-only"} {
+		got := evalPreset(t, name, req(t, "shell.read", "read", "development", legacy))
+		if got != "allow" {
+			t.Errorf("%s with legacy attrs: got %s want allow", name, got)
+		}
+	}
+}

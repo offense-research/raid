@@ -405,6 +405,12 @@ that, with no root and no approver setup:
   irreversible commands (`rm -rf /`, `rm -rf ~`, `/etc`/`/usr` wipes,
   secret exfiltration, force-push to `main`/`master`). The agent sees the
   reason and reroutes — no human latency.
+- **Egress and injection guardrails.** A credential *value* on its way out
+  (`sk-…`, `ghp_…`, `AKIA…`, a JWT, a private key) is denied outright, not just
+  a named credential path. The adapter keeps a small per-session taint ledger,
+  so an egress that follows a credential read — or a privileged action that
+  follows the agent reading outside content — stops for a human. Both are
+  judged deterministically, and neither depends on reading the content itself.
 - **One-keypress confirmations.** Everything consequential (deletes, exec,
   force-push, prod writes) is `require_approval`; approving in the TUI is a
   single key. `allow_scope: operation` mints a time-boxed grant so a repetitive
