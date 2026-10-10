@@ -19,7 +19,7 @@ Untrusted:
 - any remote callers on the TCP listener
 - free-form text in requests (agent ids, task summaries, argument values)
 
-## Security invariants (RAID-SEC-001..015)
+## Security invariants (RAID-SEC-001..019)
 
 | ID | Invariant | Enforcement |
 | --- | --- | --- |
@@ -38,6 +38,10 @@ Untrusted:
 | RAID-SEC-013 | The caller reauthorizes its grant after approval | Caller-side contract; `raidclient` exposes the receipt for verification, the caller rechecks its grant before dispatch |
 | RAID-SEC-014 | Slow TUI client cannot block decisions | Bounded per-subscriber queues; slow subscribers dropped; events resume from sequence |
 | RAID-SEC-015 | Backpressure => safe unavailability | Explicit limits (request size, subscriber cap, queue caps); failures return 503 rather than dropping |
+| RAID-SEC-016 | Tool-call integrity is judged against what the model declared | `core/integrity` screens every call: `injected_call` when no declared call names the tool, `tool_args_unverified` when the call digest differs from the declared one, `sequence_anomaly` when the call is out of declared order; the presets deny the first two outright |
+| RAID-SEC-017 | Response provenance fails closed | `provider_verified` requires an attested response from a pinned provider host naming the requested provider and model; anything else is `provider_unattested`, which the presets gate rather than trust |
+| RAID-SEC-018 | An intermediary hop is named, never assumed benign | `intermediary` marks any endpoint that is not a pinned provider host and `router_untrusted` marks a configured router; a `package.install` reached through an untrusted router is denied (the paper's AC-1.a) |
+| RAID-SEC-019 | What the client received is recorded, append-only | `integrity.Recorder` appends one JSON line per event to a 0600 file, so an audit can compare the client's view against the provider's |
 
 ## Key mechanisms
 

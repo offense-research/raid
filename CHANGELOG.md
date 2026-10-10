@@ -8,6 +8,29 @@ First engineering handoff build of the open-source MVP.
 
 ### Added
 
+- Intermediary & router integrity (arXiv:2604.08407, "Your Agent Is Mine")
+  - a new `core/integrity` package classifies the two things a malicious
+    router can change. *Provenance*: `provider_verified`,
+    `provider_unattested`, `model_mismatch`, `intermediary`,
+    `router_untrusted`. *Tool-call integrity*: `injected_call` (a call no
+    declared call names), `tool_args_unverified` (a digest mismatch against
+    what the model declared), `sequence_anomaly` (a call out of declared
+    order). It also provides a canonical `Digest` fingerprint of a tool call
+    and an append-only `Recorder` transparency log (0600, one JSON line per
+    event)
+  - `solo-dev-safe`, `review-only` and `ci-agent` deny an injected or
+    rewritten call outright. An install reached through an untrusted router is
+    denied too, because a substituted dependency name is invisible to a
+    domain allowlist (the paper's AC-1.a)
+  - `solo-dev-safe` requires a human, and `ci-agent` denies, when a
+    consequential action is governed by a response that came through a router
+    rather than the provider's own endpoint, or that named a different model;
+    `solo-dev-safe` also asks for a call that arrived out of declared order.
+    These rules fire only where a deployment configured provenance (an
+    endpoint, a router list, a model pin), so a default install stays quiet
+  - the shared Python classifier mirrors all of it, reading its pins from
+    `RAID_TRUSTED_HOSTS` / `RAID_ROUTER_HOSTS` / `RAID_EXPECT_PROVIDER` /
+    `RAID_EXPECT_MODEL` / `RAID_ENDPOINT`
 - Egress & exfiltration guardrails
   - the shared classifier now detects credential *values* — OpenAI/GitHub/GitLab/
     Slack/AWS/Google/npm/PyPI keys, JWTs, PEM private keys, bearer tokens, and

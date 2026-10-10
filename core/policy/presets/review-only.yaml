@@ -26,6 +26,27 @@ rules:
       resource.attributes.outbound_secret == "true"
     effect: deny
 
+  # --- Intermediary / router integrity (arXiv:2604.08407) -------------------
+  # A review pass reads files and fetches URLs. Both are ordinary, and both are
+  # exactly what a router that rewrote or injected the call would be driving:
+  # a rewritten read is how a credential leaves a tree, and an injected fetch
+  # is how outside text arrives. Either is blocked outright.
+  - id: deny-injected-call
+    description: >-
+      A tool call matching no call the model declared for this turn, or whose
+      arguments changed between the provider's response and dispatch.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+    when: >-
+      (has(resource.attributes.injected_call) && resource.attributes.injected_call == "true") ||
+      (has(resource.attributes.tool_args_unverified) && resource.attributes.tool_args_unverified == "true")
+    effect: deny
+
   - id: allow-reads
     description: Read-only file access, inspection, and fetches.
     match:

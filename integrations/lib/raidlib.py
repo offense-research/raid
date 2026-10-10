@@ -13,6 +13,7 @@ decision always happens in raidd against the active policy; this file only
 builds the request. A model is never the arbiter of authority.
 """
 
+import hashlib
 import http.client
 import json
 import os
@@ -20,6 +21,7 @@ import re
 import shlex
 import socket
 import time
+import urllib.parse
 
 # ---------------------------------------------------------------------------
 # raidd HTTP client (unix socket)
@@ -393,6 +395,285 @@ def session_guard_attrs(op, attrs, egress=False, outbound_secret=False,
     return out
 
 
+# ---------------------------------------------------------------------------
+# Intermediary / router integrity (arXiv:2604.08407, "Your Agent Is Mine")
+# ---------------------------------------------------------------------------
+#
+# The client sits behind a chain of routers; every hop re-originates TLS and so
+# sees each in-flight JSON payload. Nothing in the deployed stack binds the
+# tool-call arguments the provider returned to the arguments the client finally
+# executes, so one hop can inject a call the model never made, rewrite one it
+# did, or reorder a declared sequence.
+#
+# This mirrors core/integrity in the Go engine, attribute for attribute, so one
+# policy bundle behaves the same under every adapter. Like the taint ledger it
+# decides nothing: it stamps conclusions onto resource.attributes, and the
+# policy in raidd decides, deterministically and fail-closed.
+#
+# The pins come from the environment, because the adapter is the only layer that
+# knows what it asked for and what came back:
+#
+#   RAID_ENDPOINT          URL/host a response actually came from
+#   RAID_TRUSTED_HOSTS     comma/space separated provider endpoints
+#   RAID_ROUTER_HOSTS      comma/space separated third-party routers
+#   RAID_EXPECT_PROVIDER   the provider that was requested
+#   RAID_EXPECT_MODEL      the model that was requested
+#   RAID_OBSERVED_PROVIDER the provider the response claimed
+#   RAID_OBSERVED_MODEL    the model the response claimed
+#   RAID_ATTESTED=1        the response carried a verifiable provider signature
+#   RAID_DECLARED_CALLS    JSON list of {"tool": str, "input": {...}} the model declared
+#   RAID_CALL_INDEX        this call's position in that declared sequence
+#   RAID_INTEGRITY_LOG     append-only transparency log file (off when unset)
+#
+# Everything defaults to "false". An adapter that knows nothing about provenance
+# says so rather than implying the response was verified.
+
+_INTEGRITY_DEFAULTS = (
+    "provider_verified",
+    "provider_unattested",
+    "model_mismatch",
+    "intermediary",
+    "router_untrusted",
+    "injected_call",
+    "tool_args_unverified",
+    "sequence_anomaly",
+)
+
+
+def _env_list(name):
+    raw = os.environ.get(name, "")
+    return [p for p in re.split(r"[,\s]+", raw.strip()) if p]
+
+
+def _env_true(name):
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _same_name(a, b):
+    return (a or "").strip().lower() == (b or "").strip().lower()
+
+
+def host_of(endpoint):
+    """Lowercase host of a URL, host:port, or bare host."""
+    e = (endpoint or "").strip()
+    if not e:
+        return ""
+    if "://" not in e:
+        e = "//" + e
+    try:
+        return (urllib.parse.urlsplit(e).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def host_matches(host, patterns):
+    """Whether host is a pattern or a subdomain of one."""
+    h = (host or "").strip().lower()
+    if not h:
+        return False
+    for p in patterns or ():
+        p = (p or "").strip().lower()
+        if p.startswith("*."):
+            p = p[2:]
+        if p.startswith("."):
+            p = p[1:]
+        if not p:
+            continue
+        if h == p or h.endswith("." + p):
+            return True
+    return False
+
+
+def classify_host(host, trusted, routers):
+    """(intermediary, untrusted) for an endpoint host.
+
+    A trusted host is not an intermediary; a listed router is untrusted by
+    definition; any other host is still an intermediary hop but unflagged. An
+    unknown host accuses nobody -- the provenance attributes fail closed.
+    """
+    if not (host or "").strip():
+        return False, False
+    if host_matches(host, trusted):
+        return False, False
+    if host_matches(host, routers):
+        return True, True
+    return True, False
+
+
+def provenance_attrs(endpoint=None, provider=None, model=None,
+                     observed_provider=None, observed_model=None,
+                     trusted=None, routers=None, attested=None):
+    """Provenance attributes: which upstream produced the response.
+
+    provider_verified requires an attested response from a pinned provider host
+    naming the requested provider and model. Everything else is
+    provider_unattested, so a policy fails closed rather than trusting silence.
+    """
+    env = os.environ
+    endpoint = env.get("RAID_ENDPOINT", "") if endpoint is None else endpoint
+    provider = env.get("RAID_EXPECT_PROVIDER", "") if provider is None else provider
+    model = env.get("RAID_EXPECT_MODEL", "") if model is None else model
+    observed_provider = (
+        env.get("RAID_OBSERVED_PROVIDER", "")
+        if observed_provider is None
+        else observed_provider
+    )
+    observed_model = (
+        env.get("RAID_OBSERVED_MODEL", "") if observed_model is None else observed_model
+    )
+    trusted = _env_list("RAID_TRUSTED_HOSTS") if trusted is None else trusted
+    routers = _env_list("RAID_ROUTER_HOSTS") if routers is None else routers
+    attested = _env_true("RAID_ATTESTED") if attested is None else bool(attested)
+
+    if not (endpoint or provider or model or observed_provider or observed_model
+            or trusted or routers or attested):
+        # Nothing is configured, so make no provenance claim at all. An adapter
+        # that does no provenance check says nothing rather than accusing every
+        # response; the policy stays quiet instead of prompting on every call.
+        return {
+            "provider_verified": "false",
+            "provider_unattested": "false",
+            "model_mismatch": "false",
+            "intermediary": "false",
+            "router_untrusted": "false",
+        }
+
+    host = host_of(endpoint)
+    intermediary, untrusted = classify_host(host, trusted, routers)
+
+    verified = bool(
+        attested
+        and not intermediary
+        and observed_provider
+        and _same_name(observed_provider, provider)
+        and (not observed_model or not model or _same_name(observed_model, model))
+    )
+    mismatch = bool(
+        attested
+        and not intermediary
+        and observed_model
+        and model
+        and not _same_name(observed_model, model)
+    )
+    return {
+        "provider_verified": "true" if verified else "false",
+        "provider_unattested": "false" if verified else "true",
+        "model_mismatch": "true" if mismatch else "false",
+        "intermediary": "true" if intermediary else "false",
+        "router_untrusted": "true" if untrusted else "false",
+    }
+
+
+def call_digest(tool_name, tool_input):
+    """Canonical SHA-256 digest of a tool call.
+
+    Mirrors core/integrity.Digest. Digests are only ever compared inside one
+    adapter, so a caller never needs two languages to agree byte for byte.
+    """
+    payload = json.dumps(
+        {"tool": (tool_name or "").strip().lower(), "arguments": tool_input or {}},
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def screen_calls(declared, received_tool, received_input):
+    """(injected, args_unverified) against the calls the model declared.
+
+    injected: no declared call names the tool. args_unverified: a declared call
+    names it with different arguments. Nothing declared is not a judgement.
+    """
+    if not declared:
+        return False, False
+    rf = call_digest(received_tool, received_input)
+    same_tool = False
+    for d in declared:
+        if not _same_name(d.get("tool"), received_tool):
+            continue
+        same_tool = True
+        if call_digest(d.get("tool"), d.get("input")) == rf:
+            return False, False
+    if same_tool:
+        return False, True
+    return True, False
+
+
+def screen_sequence(declared, index, received_tool, received_input):
+    """Whether the call at index differs from what the model declared there."""
+    if not declared or index is None or index < 0 or index >= len(declared):
+        return False
+    d = declared[index]
+    return (
+        not _same_name(d.get("tool"), received_tool)
+        or call_digest(d.get("tool"), d.get("input"))
+        != call_digest(received_tool, received_input)
+    )
+
+
+def declared_calls():
+    """The calls the model declared for this turn, from RAID_DECLARED_CALLS."""
+    raw = os.environ.get("RAID_DECLARED_CALLS", "").strip()
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    out = []
+    for item in parsed:
+        if isinstance(item, dict) and item.get("tool"):
+            out.append({"tool": item.get("tool"), "input": item.get("input") or {}})
+    return out
+
+
+def call_index():
+    """This call's position in the declared sequence, or None."""
+    try:
+        return int(os.environ.get("RAID_CALL_INDEX", "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def integrity_attrs(tool_name, tool_input, declared=None, index=None, **provenance):
+    """All eight intermediary-integrity attributes for one call."""
+    attrs = {name: "false" for name in _INTEGRITY_DEFAULTS}
+    attrs.update(provenance_attrs(**provenance))
+    injected, unverified = screen_calls(declared, tool_name, tool_input)
+    attrs["injected_call"] = "true" if injected else "false"
+    attrs["tool_args_unverified"] = "true" if unverified else "false"
+    attrs["sequence_anomaly"] = (
+        "true" if screen_sequence(declared, index, tool_name, tool_input) else "false"
+    )
+    return attrs
+
+
+def integrity_log(entry, path=None):
+    """Append one event to the transparency log. Never raises.
+
+    The paper's third deployable client-side defense: an append-only record of
+    what the client received, for audit against the provider's own view.
+    Disabled unless RAID_INTEGRITY_LOG names a file or a path is passed.
+    """
+    target = path if path is not None else os.environ.get("RAID_INTEGRITY_LOG", "")
+    if not target:
+        return False
+    try:
+        d = os.path.dirname(target)
+        if d:
+            os.makedirs(d, mode=0o700, exist_ok=True)
+        with open(target, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"time": time.time(), "entry": entry}, sort_keys=True))
+            fh.write("\n")
+        os.chmod(target, 0o600)
+        return True
+    except Exception:
+        return False
+
+
 def _split_segments(cmd):
     """Split a shell command on control operators (loose, quote-unaware)."""
     parts = re.split(r"(?:&&|\|\||;|\n|\|)", cmd)
@@ -715,6 +996,12 @@ def tool_to_action(tool_name, tool_input, request_id, environment="development",
         outbound_secret=outbound_secret,
         secret_touched=secret_touched,
         untrusted_input=untrusted_input,
+    ))
+
+    attrs.update(integrity_attrs(
+        tool_name, tin,
+        declared=declared_calls(),
+        index=call_index(),
     ))
 
     environment = environment or os.environ.get("RAID_ENV", "development")

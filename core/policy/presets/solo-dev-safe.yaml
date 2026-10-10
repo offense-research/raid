@@ -37,6 +37,55 @@ rules:
         (action.operation == "git.force_push" || action.operation == "git.rewrite"))
     effect: deny
 
+  # --- Intermediary / router integrity (arXiv:2604.08407) -------------------
+  # The client sits behind a chain of routers; every hop terminates and
+  # re-originates TLS, so every hop sees each in-flight tool call. Nothing in
+  # the deployed stack binds the arguments the provider returned to the
+  # arguments the client finally executes, so a single hop can inject a call
+  # the model never made (AC-1) or rewrite one it did (AC-1.a). Neither is
+  # approvable: there is no reading of "run this call the model never asked
+  # for" that one keystroke should wave through.
+  - id: deny-injected-call
+    description: >-
+      A tool call matching no call the model declared for this turn, or whose
+      arguments changed between the provider's response and dispatch.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.delete
+        - shell.execute
+        - shell.write
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.injected_call) && resource.attributes.injected_call == "true") ||
+      (has(resource.attributes.tool_args_unverified) && resource.attributes.tool_args_unverified == "true")
+    effect: deny
+
+  # A typosquat on a dependency name is the paper's AC-1.a: rewrite the package
+  # in an install so the client fetches the attacker's package. An install
+  # whose response arrived through an untrusted router is blocked outright,
+  # because a domain allowlist cannot see the substitution.
+  - id: deny-router-package-install
+    description: >-
+      Installing a package from a response that came through an untrusted
+      router.
+    match:
+      providers: [claude-code]
+      operations: [package.install]
+    when: >-
+      has(resource.attributes.router_untrusted) &&
+      resource.attributes.router_untrusted == "true"
+    effect: deny
+
   # --- Egress & exfiltration ------------------------------------------------
   # The tier above catches a credential *path* paired with a network verb in a
   # single command. These catch what no single command can express on its own.
@@ -117,6 +166,96 @@ rules:
     when: >-
       has(resource.attributes.untrusted_source) &&
       resource.attributes.untrusted_source == "true"
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  # --- Intermediary suspicion: stop for a human ----------------------------
+  # A response that cannot be tied to the provider, or that arrived through a
+  # recognised router, taints every call it governs; the action itself may be
+  # ordinary, so it is the response that needs a human.
+  - id: confirm-untrusted-router
+    description: >-
+      A consequential action whose model response came through a router that is
+      not the provider's own endpoint.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - package.install
+        - service.exec
+        - container.exec
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      has(resource.attributes.router_untrusted) &&
+      resource.attributes.router_untrusted == "true"
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  - id: confirm-unverified-provenance
+    description: >-
+      A consequential action governed by a response the client could not tie to
+      the provider and model it asked for.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - package.install
+        - service.exec
+        - container.exec
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.intermediary) && resource.attributes.intermediary == "true") ||
+      (has(resource.attributes.model_mismatch) && resource.attributes.model_mismatch == "true")
+    effect: require_approval
+    approval:
+      approver_groups: []
+      quorum: 1
+      ttl: 5m
+      allow_scope: exact_request
+
+  - id: confirm-sequence-anomaly
+    description: >-
+      A call that arrived out of the order the model declared for this turn.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - package.install
+        - service.exec
+        - container.exec
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      has(resource.attributes.sequence_anomaly) &&
+      resource.attributes.sequence_anomaly == "true"
     effect: require_approval
     approval:
       approver_groups: []
