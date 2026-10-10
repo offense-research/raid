@@ -9,7 +9,7 @@ all:
 .PHONY: all test bench fmt vet lint clean install run-demo
 
 test:
-	$(GO) test -count=1 ./core/canonical ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./core/cli ./pkg/raidclient
+	$(GO) test -count=1 ./core/canonical ./core/integrity ./core/policy ./core/decision ./core/store ./core/approval ./core/api ./core/jev ./core/nlpolicy ./core/tui ./core/cli ./pkg/raidclient
 
 fmt:
 	$(GO) fmt ./...

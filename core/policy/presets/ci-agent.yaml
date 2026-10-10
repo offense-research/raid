@@ -75,6 +75,73 @@ rules:
       resource.attributes.tainted_egress == "true"
     effect: deny
 
+  # --- Intermediary / router integrity (arXiv:2604.08407) -------------------
+  # A pipeline has no human to ask, so every intermediary concern is a flat
+  # deny: a call the model never declared, an install reached through an
+  # untrusted router (the paper's AC-1.a typosquat), and any consequential step
+  # governed by a response that cannot be tied to the provider.
+  - id: deny-injected-call
+    description: >-
+      A tool call matching no call the model declared for this turn, or whose
+      arguments changed between the provider's response and dispatch.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.delete
+        - shell.execute
+        - shell.write
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.injected_call) && resource.attributes.injected_call == "true") ||
+      (has(resource.attributes.tool_args_unverified) && resource.attributes.tool_args_unverified == "true")
+    effect: deny
+
+  - id: deny-router-package-install
+    description: >-
+      Installing a package from a response that came through an untrusted
+      router.
+    match:
+      providers: [claude-code]
+      operations: [package.install]
+    when: >-
+      has(resource.attributes.router_untrusted) &&
+      resource.attributes.router_untrusted == "true"
+    effect: deny
+
+  - id: deny-unverified-provenance
+    description: >-
+      A consequential step governed by a response the client could not tie to
+      the provider and model it asked for.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - package.install
+        - service.exec
+        - container.exec
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.intermediary) && resource.attributes.intermediary == "true") ||
+      (has(resource.attributes.model_mismatch) && resource.attributes.model_mismatch == "true") ||
+      (has(resource.attributes.sequence_anomaly) && resource.attributes.sequence_anomaly == "true")
+    effect: deny
+
   # --- Indirect prompt injection --------------------------------------------
   # A state-changing step taken after the build pulled in outside content.
   # Normal build traffic does not trip this: only the agent's own fetch/search

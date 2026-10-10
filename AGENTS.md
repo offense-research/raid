@@ -10,7 +10,7 @@ single-use receipt** bound to the exact request.
 
 This file is for AI agents and humans working in the codebase. Read
 `README.md` for the product pitch, `llms.txt` for agent-facing invariants,
-and `docs/threat-model.md` (`RAID-SEC-001..015`) for the security contract.
+and `docs/threat-model.md` (`RAID-SEC-001..019`) for the security contract.
 
 ## Language and build (read this first)
 
@@ -61,6 +61,8 @@ Ed25519 receipt. `core/server/boot.go` wires everything.
 Module map (all under `core/`):
 
 - `canonical` — strict JSON decoder, deterministic CBOR, SHA-256 request hash
+- `integrity` — intermediary/router provenance and tool-call integrity:
+  attribute contract, canonical call digest, append-only recorder
 - `policy` — schema, loader, CEL compiler, index, evaluator, diff
 - `decision` — `Engine`, effect combination, semantic combine (`combine.go`)
 - `approval` — model, state machine, durable service, receipts
