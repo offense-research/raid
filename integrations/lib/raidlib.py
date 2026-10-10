@@ -437,6 +437,27 @@ _INTEGRITY_DEFAULTS = (
     "injected_call",
     "tool_args_unverified",
     "sequence_anomaly",
+    # Agent-assurance classes (arXiv:2608.01558, 2606.10749, 2608.10530). Kept
+    # in step with core/integrity/assurance.go so one policy bundle reads the
+    # same attribute set under every adapter.
+    "trajectory_tracked",
+    "trajectory_attested",
+    "trajectory_drift",
+    "trajectory_unplanned",
+    "trajectory_quota_exceeded",
+    "tool_schema_attested",
+    "tool_schema_mutated",
+    "hidden_tool_injected",
+    "boundary_tampered",
+    "stream_audited",
+    "stream_prefix_mismatch",
+    "stream_suffix_injected",
+    "response_delta",
+    "confinement_tracked",
+    "confined",
+    "confinement_escape",
+    "confinement_widened",
+    "env_escape",
 )
 
 

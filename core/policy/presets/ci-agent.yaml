@@ -142,6 +142,111 @@ rules:
       (has(resource.attributes.sequence_anomaly) && resource.attributes.sequence_anomaly == "true")
     effect: deny
 
+  # --- Agent-assurance (arXiv:2608.01558, 2606.10749, 2608.10530) -----------
+  # A pipeline has no human to ask, so every agent-assurance concern is a flat
+  # deny: a tampered tool schema, a completion rewritten in flight, a trajectory
+  # that left its declared plan, and an action outside the session's confinement
+  # scope are all things a build must stop on rather than prompt about.
+  - id: deny-schema-tamper
+    description: >-
+      A tool definition, an injected tool, or the system-prompt boundary that
+      does not match the pinned manifest.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.tool_schema_mutated) && resource.attributes.tool_schema_mutated == "true") ||
+      (has(resource.attributes.hidden_tool_injected) && resource.attributes.hidden_tool_injected == "true") ||
+      (has(resource.attributes.boundary_tampered) && resource.attributes.boundary_tampered == "true")
+    effect: deny
+
+  - id: deny-response-tamper
+    description: A completion rewritten in flight, or carrying content after its declared stop.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.response_delta) && resource.attributes.response_delta == "true") ||
+      (has(resource.attributes.stream_suffix_injected) && resource.attributes.stream_suffix_injected == "true")
+    effect: deny
+
+  - id: deny-trajectory-drift
+    description: A trajectory that left its declared plan or broke a declared invariant.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.trajectory_drift) && resource.attributes.trajectory_drift == "true") ||
+      (has(resource.attributes.trajectory_unplanned) && resource.attributes.trajectory_unplanned == "true") ||
+      (has(resource.attributes.trajectory_quota_exceeded) && resource.attributes.trajectory_quota_exceeded == "true")
+    effect: deny
+
+  - id: deny-confinement-breach
+    description: >-
+      A sub-invocation that widened its scope, or an action outside the
+      session's declared confinement scope.
+    match:
+      providers: [claude-code]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.confinement_escape) && resource.attributes.confinement_escape == "true") ||
+      (has(resource.attributes.env_escape) && resource.attributes.env_escape == "true") ||
+      (has(resource.attributes.confinement_widened) && resource.attributes.confinement_widened == "true") ||
+      (has(resource.attributes.stream_prefix_mismatch) && resource.attributes.stream_prefix_mismatch == "true")
+    effect: deny
+
   # --- Indirect prompt injection --------------------------------------------
   # A state-changing step taken after the build pulled in outside content.
   # Normal build traffic does not trip this: only the agent's own fetch/search
