@@ -126,6 +126,40 @@ def said_deny_anywhere(out):
             or j.get("decision") == "block" or j.get("permission") == "deny")
 
 
+def contract_ok(host, rc, stdout, stderr):
+    """Did the denial land in the exact signal this host documents?
+
+    Sharper than "blocked somehow". A gate that crashed would exit 2 and a bare
+    exit-code check would read that as a block, so each host's own contract is
+    asserted field by field:
+
+      claude-code/pi/omp  hookSpecificOutput.permissionDecision == "deny"
+                          (schema-validated; this is the field the host reads)
+      crush/windsurf      exit 2, with a non-empty reason for the user. The two
+                          differ on stream and neither documents which: crush
+                          prints to stderr, windsurf to stdout (its README says
+                          the reason is "shown in Cascade" via show_output), so
+                          the reason is accepted from either stream.
+      cursor              exit 0 and stdout {"permission":"deny"}
+
+    Returns (ok, detail) so a failure names what was missing.
+    """
+    try:
+        j = json.loads((stdout or "").strip() or "{}")
+    except ValueError:
+        j = {}
+    hso = j.get("hookSpecificOutput") or {}
+    reason = (hso.get("permissionDecisionReason") or stderr or stdout or "").strip()
+    if host == "cursor":
+        return (rc == 0 and j.get("permission") == "deny"), \
+            f"exit={rc} permission={j.get('permission')!r} (want exit 0, deny)"
+    if host in ("crush", "windsurf"):
+        return (rc == 2 and bool(reason)), \
+            f"exit={rc} reason={'present' if reason else 'MISSING'} (want exit 2 + reason)"
+    return (hso.get("permissionDecision") == "deny"), \
+        f"exit={rc} permissionDecision={hso.get('permissionDecision')!r} (want deny)"
+
+
 class Matrix:
     def __init__(self, root):
         self.root = pathlib.Path(root)
@@ -187,6 +221,19 @@ class Matrix:
         blocked = blocked_by(host, proc.returncode, proc.stdout)
         return blocked, proc.returncode, (proc.stdout or proc.stderr or "").strip()
 
+    def hook_raw(self, host, tool, inp, **extra):
+        """Exit status, stdout and stderr kept separate.
+
+        contract_ok has to tell a decision from a crash, and a reason on stderr
+        (crush) from one on stdout (cursor), so the streams cannot be merged.
+        """
+        gate = REPO / "integrations" / host / "hook_gate.py"
+        payload = PAYLOAD[host](tool, inp, self.scope)
+        proc = subprocess.run([sys.executable, str(gate)], input=json.dumps(payload),
+                              capture_output=True, text=True,
+                              env=self.env(host, **extra), cwd=str(self.scope), timeout=60)
+        return proc.returncode, (proc.stdout or "").strip(), (proc.stderr or "").strip()
+
     def shim(self, host, argv, **extra):
         proc = subprocess.run([sys.executable, str(EXEC), "--", *argv],
                               capture_output=True, text=True,
@@ -222,6 +269,12 @@ def group_hook_host(h, host):
                 not said_deny_anywhere(out),
                 "denied in a field the host ignores - the call would still run"
                 if said_deny_anywhere(out) else "no denial emitted at all")
+
+    # The precise contract, not just "something with a non-zero exit".
+    rc_c, so_c, se_c = h.hook_raw(host, "write",
+                                  {"file_path": str(h.outside / "esc-contract.txt"), "content": "x"})
+    ok_c, why_c = contract_ok(host, rc_c, so_c, se_c)
+    h.check(host, "the denial lands in the signal this host documents", ok_c, why_c)
 
     blocked, rc, out = h.hook(host, "bash",
                               {"command": f"echo pwned > {h.outside}/redir.txt"})
