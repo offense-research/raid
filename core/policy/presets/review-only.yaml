@@ -15,7 +15,7 @@ rules:
     description: >-
       Sending credential material off the machine while reviewing.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -36,7 +36,7 @@ rules:
       A tool call matching no call the model declared for this turn, or whose
       arguments changed between the provider's response and dispatch.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -56,7 +56,7 @@ rules:
       A read governed by a tampered tool schema, a rewritten completion, or a
       rewritten system-prompt boundary.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -74,7 +74,7 @@ rules:
   - id: allow-reads
     description: Read-only file access, inspection, and fetches.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -85,6 +85,6 @@ rules:
   - id: deny-all-mutation
     description: This preset grants no write, delete, execute, or admin authority.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       effects: [write, delete, execute, admin]
     effect: deny

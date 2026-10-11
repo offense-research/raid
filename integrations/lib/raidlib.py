@@ -188,10 +188,14 @@ _SECRET_RX = re.compile(
 _NETWORK_VERBS = {"curl", "wget", "nc", "ncat", "netcat", "scp", "sftp", "rsync", "ssh", "telnet", "ftp"}
 _PROTECTED_BRANCHES = {"main", "master", "trunk", "release", "production", "prod"}
 
-# A shell redirection to a file. Matched against the segment with quoted spans
-# removed, so a literal " > " inside a string is not mistaken for a write, and
-# with `&`= excluded so a file-descriptor duplication (`2>&1`) is not either.
-_WRITE_REDIRECT_RX = re.compile(r"(?:^|[\s;|&])\d?>>?\s*(?![&=])")
+# A shell redirection to a file. Detected on *tokens*, not on the raw string.
+# shlex has already stripped quoting, so a redirect that arrived quoted still
+# reads as one -- `raid-exec` builds its command with shlex.quote, which turns
+# `>` into `'>'`, and a scan of the raw text sees only the quotes and misses the
+# write. A literal `>` inside a string is part of a larger token and is ignored.
+# `2>&1` / `>&2` duplicate a descriptor rather than write a file.
+_REDIRECT_OPS = (">", ">>", "1>", "2>", "&>", "1>>", "2>>", ">|")
+_REDIRECT_ATTACHED_RX = re.compile(r"^(?:\d)?>>?(?![&=])(?P<path>.+)$")
 
 # ---------------------------------------------------------------------------
 # Egress & exfiltration guardrails, and session taint
@@ -831,10 +835,15 @@ def classify_segment(segment):
     # /etc/hosts` is a write, and reporting it as a read is not a cosmetic
     # mistake: every rule scoped to state-changing operations -- which is where
     # the confinement and destructive-write checks live -- would miss it.
-    unquoted = re.sub(r"'[^']*'|\"[^\"]*\"", "", segment)
-    if _WRITE_REDIRECT_RX.search(unquoted):
+    if any(_is_redirect(t) for t in toks):
         if _EFFECT_RANK.get(fx, 0) < _EFFECT_RANK["write"]:
             op, fx = "shell.write", "write"
+
+    nested = _nested_shell_command(toks)
+    if nested:
+        nop, nfx, _nrt, _nattrs = classify_segment(nested)
+        if _EFFECT_RANK.get(nfx, 0) > _EFFECT_RANK.get(fx, 0):
+            op, fx = nop, nfx
 
     egress = _segment_egress(toks, low)
     attrs = {
@@ -862,6 +871,38 @@ def _primary_target(toks):
     for t in toks[1:]:
         if not t.startswith("-") and not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", t):
             return t
+    return ""
+
+
+def _redirect_path(tok):
+    """The path attached to a redirect token (`>out.log`, `2>>log`), or ''."""
+    m = _REDIRECT_ATTACHED_RX.match(str(tok or ""))
+    return m.group("path") if m else ""
+
+
+def _is_redirect(tok):
+    """True for a shell token that redirects output to a file."""
+    return str(tok or "") in _REDIRECT_OPS or bool(_redirect_path(tok))
+
+
+_SHELL_VERBS = {"sh", "bash", "zsh", "dash", "ksh", "ash"}
+
+
+def _nested_shell_command(toks):
+    """The command string passed to `sh -c '...'`, if this segment is one.
+
+    A CLI agent that shells out almost always wraps its command in an
+    interpreter, so the redirect it performs lives *inside* that argument.
+    Analysing only the outer tokens sees `bash -c <string>` and misses the write
+    entirely -- and the quoting that makes it opaque is the adapter's own
+    (`raid-exec` builds its command with shlex.quote).
+    """
+    if len(toks) < 3 or os.path.basename(toks[0]) not in _SHELL_VERBS:
+        return ""
+    for i, t in enumerate(toks[1:], start=1):
+        if t == "-c" and i + 1 < len(toks):
+            # shlex has already removed the inner quoting.
+            return " ".join(toks[i + 1:])
     return ""
 
 

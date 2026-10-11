@@ -36,6 +36,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import time
 
 # ---------------------------------------------------------------------------
@@ -253,6 +254,37 @@ def _env_refs_in(cmd):
     return out
 
 
+# A shell redirect to a file, detected on shlex tokens rather than on raw text:
+# a redirect that arrived quoted (`raid-exec` builds its command with
+# shlex.quote, turning `>` into `'>'`) still reads as one, while a literal `>`
+# inside a string is part of a larger token and is ignored. `2>&1` duplicates a
+# descriptor rather than writing a file.
+_REDIRECT_OPS = (">", ">>", "1>", "2>", "&>", "1>>", "2>>", ">|")
+_REDIRECT_ATTACHED_RX = re.compile(r"^(?:\d)?>>?(?![&=])(?P<path>.+)$")
+_SHELL_VERBS = {"sh", "bash", "zsh", "dash", "ksh", "ash"}
+
+
+def _redirect_path(tok):
+    """The path attached to a redirect token (`>out.log`, `2>>log`), or ''."""
+    m = _REDIRECT_ATTACHED_RX.match(str(tok or ""))
+    return m.group("path") if m else ""
+
+
+def _is_redirect(tok):
+    """True for a shell token that redirects output to a file."""
+    return str(tok or "") in _REDIRECT_OPS or bool(_redirect_path(tok))
+
+
+def _nested_shell_command(toks):
+    """The command string passed to `sh -c '...'`, if these tokens are one."""
+    if len(toks) < 3 or os.path.basename(toks[0]) not in _SHELL_VERBS:
+        return ""
+    for i, t in enumerate(toks[1:], start=1):
+        if t == "-c" and i + 1 < len(toks):
+            return " ".join(toks[i + 1:])
+    return ""
+
+
 def _shell_targets(cmd):
     """Filesystem paths a shell command names.
 
@@ -265,6 +297,14 @@ def _shell_targets(cmd):
     s = str(cmd or "")
     if not s:
         return []
+    # Tokenized with shlex rather than split on whitespace: a redirect is often
+    # quoted in transit -- `raid-exec` builds its command with shlex.quote, so
+    # the operator arrives as `'>'` -- and a whitespace split sees the quotes and
+    # misses the write.
+    try:
+        toks = shlex.split(s)
+    except ValueError:
+        toks = s.split()
     out, seen = [], set()
 
     def add(p):
@@ -274,13 +314,21 @@ def _shell_targets(cmd):
             seen.add(p)
             out.append(p)
 
-    toks = s.split()
     for i, t in enumerate(toks):
-        if t in (">", ">>", "1>", "2>", "&>", "1>>", "2>>"):
-            if i + 1 < len(toks):
-                add(toks[i + 1])
-        elif t.startswith(">") and len(t) > 1:
-            add(t[1:])
+        if not _is_redirect(t):
+            continue
+        attached = _redirect_path(t)
+        if attached:
+            add(attached)
+        elif i + 1 < len(toks):
+            add(toks[i + 1])
+
+    # A command wrapped in an interpreter (`bash -c '... > /etc/hosts'`) keeps
+    # its redirect inside the argument, where the outer tokens never show it.
+    nested = _nested_shell_command(toks)
+    if nested:
+        for p in _shell_targets(nested):
+            add(p)
 
     if toks:
         verb = os.path.basename(toks[0])

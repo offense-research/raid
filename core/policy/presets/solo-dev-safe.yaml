@@ -15,7 +15,7 @@ rules:
       Irreversible, system-wide, credential-exfiltrating, or protected-branch
       rewriting commands are blocked outright.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -50,7 +50,7 @@ rules:
       A tool call matching no call the model declared for this turn, or whose
       arguments changed between the provider's response and dispatch.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -79,7 +79,7 @@ rules:
       Installing a package from a response that came through an untrusted
       router.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations: [package.install]
     when: >-
       has(resource.attributes.router_untrusted) &&
@@ -98,7 +98,7 @@ rules:
       Sending credential material off the machine, whether the key was read in
       this command or earlier in the session.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -121,7 +121,7 @@ rules:
   - id: confirm-tainted-egress
     description: Egress from a session that has already handled credential material.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -149,7 +149,7 @@ rules:
       A state-changing action taken after the session read untrusted external
       content.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - shell.execute
@@ -182,7 +182,7 @@ rules:
       A consequential action whose model response came through a router that is
       not the provider's own endpoint.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - shell.execute
@@ -211,7 +211,7 @@ rules:
       A consequential action governed by a response the client could not tie to
       the provider and model it asked for.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - shell.execute
@@ -239,7 +239,7 @@ rules:
     description: >-
       A call that arrived out of the order the model declared for this turn.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - shell.execute
@@ -277,7 +277,7 @@ rules:
       A tool definition, an injected tool, or the system-prompt boundary that
       does not match the pinned manifest.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -309,7 +309,7 @@ rules:
       A completion rewritten in flight, or carrying content after its declared
       stop.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -337,7 +337,7 @@ rules:
   - id: deny-trajectory-quota
     description: The session exhausted a declared trajectory invariant.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -367,7 +367,7 @@ rules:
       A sub-invocation asked for an environment or permission scope broader than
       its parent's.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -395,7 +395,7 @@ rules:
       A completion that did not begin with the anchored prefix the client
       expected.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -427,7 +427,7 @@ rules:
     description: >-
       A session whose cumulative trajectory left the plan it declared.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - shell.execute
@@ -456,7 +456,7 @@ rules:
       An action outside the session's declared confinement scope, or one that
       references an environment variable the scope never granted.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - shell.execute
@@ -484,7 +484,7 @@ rules:
   - id: allow-reads
     description: Read-only file access and safe shell inspection.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -496,7 +496,7 @@ rules:
   - id: allow-dev-writes
     description: File edits and package installs outside production.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - filesystem.write
@@ -509,7 +509,7 @@ rules:
   - id: allow-dev-push
     description: Pushing a non-protected branch.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations: [git.push]
     when: >-
       resource.environment != "production" &&
@@ -522,7 +522,7 @@ rules:
   - id: confirm-delete-db-cloud
     description: Deletes, database mutation, and cloud mutation.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.delete
         - db.mutate
@@ -537,7 +537,7 @@ rules:
   - id: confirm-exec
     description: Running services, containers, or privileged shell commands.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - service.exec
         - container.exec
@@ -552,7 +552,7 @@ rules:
   - id: confirm-force-push
     description: Force-pushing or rewriting history always needs a human.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - git.force_push
         - git.rewrite
@@ -566,7 +566,7 @@ rules:
   - id: confirm-protected-push
     description: Pushing to a protected branch needs a human.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - git.push
     when: >-
@@ -582,7 +582,7 @@ rules:
   - id: confirm-prod-writes
     description: File writes or package installs in production.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - filesystem.write
@@ -600,6 +600,6 @@ rules:
   - id: deny-listed
     description: Operations that must never run.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations: [shell.denied]
     effect: deny
