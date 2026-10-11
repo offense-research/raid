@@ -12,7 +12,7 @@ rules:
       Irreversible, system-wide, or credential-exfiltrating commands are
       blocked outright.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -41,7 +41,7 @@ rules:
       Sending credential material off the machine, whether the key was read in
       this command or earlier in the session.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -61,7 +61,7 @@ rules:
   - id: deny-tainted-egress
     description: Egress from a build that has already handled credential material.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -85,7 +85,7 @@ rules:
       A tool call matching no call the model declared for this turn, or whose
       arguments changed between the provider's response and dispatch.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -110,7 +110,7 @@ rules:
       Installing a package from a response that came through an untrusted
       router.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations: [package.install]
     when: >-
       has(resource.attributes.router_untrusted) &&
@@ -122,7 +122,7 @@ rules:
       A consequential step governed by a response the client could not tie to
       the provider and model it asked for.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - shell.execute
@@ -142,6 +142,111 @@ rules:
       (has(resource.attributes.sequence_anomaly) && resource.attributes.sequence_anomaly == "true")
     effect: deny
 
+  # --- Agent-assurance (arXiv:2608.01558, 2606.10749, 2608.10530) -----------
+  # A pipeline has no human to ask, so every agent-assurance concern is a flat
+  # deny: a tampered tool schema, a completion rewritten in flight, a trajectory
+  # that left its declared plan, and an action outside the session's confinement
+  # scope are all things a build must stop on rather than prompt about.
+  - id: deny-schema-tamper
+    description: >-
+      A tool definition, an injected tool, or the system-prompt boundary that
+      does not match the pinned manifest.
+    match:
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.tool_schema_mutated) && resource.attributes.tool_schema_mutated == "true") ||
+      (has(resource.attributes.hidden_tool_injected) && resource.attributes.hidden_tool_injected == "true") ||
+      (has(resource.attributes.boundary_tampered) && resource.attributes.boundary_tampered == "true")
+    effect: deny
+
+  - id: deny-response-tamper
+    description: A completion rewritten in flight, or carrying content after its declared stop.
+    match:
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.response_delta) && resource.attributes.response_delta == "true") ||
+      (has(resource.attributes.stream_suffix_injected) && resource.attributes.stream_suffix_injected == "true")
+    effect: deny
+
+  - id: deny-trajectory-drift
+    description: A trajectory that left its declared plan or broke a declared invariant.
+    match:
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.trajectory_drift) && resource.attributes.trajectory_drift == "true") ||
+      (has(resource.attributes.trajectory_unplanned) && resource.attributes.trajectory_unplanned == "true") ||
+      (has(resource.attributes.trajectory_quota_exceeded) && resource.attributes.trajectory_quota_exceeded == "true")
+    effect: deny
+
+  - id: deny-confinement-breach
+    description: >-
+      A sub-invocation that widened its scope, or an action outside the
+      session's declared confinement scope.
+    match:
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+        - shell.write
+        - shell.execute
+        - shell.delete
+        - filesystem.write
+        - git.push
+        - git.force_push
+        - git.rewrite
+        - db.mutate
+        - cloud.mutate
+    when: >-
+      (has(resource.attributes.confinement_escape) && resource.attributes.confinement_escape == "true") ||
+      (has(resource.attributes.env_escape) && resource.attributes.env_escape == "true") ||
+      (has(resource.attributes.confinement_widened) && resource.attributes.confinement_widened == "true") ||
+      (has(resource.attributes.stream_prefix_mismatch) && resource.attributes.stream_prefix_mismatch == "true")
+    effect: deny
+
   # --- Indirect prompt injection --------------------------------------------
   # A state-changing step taken after the build pulled in outside content.
   # Normal build traffic does not trip this: only the agent's own fetch/search
@@ -151,7 +256,7 @@ rules:
       A state-changing action taken after the session read untrusted external
       content.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - shell.execute
@@ -178,7 +283,7 @@ rules:
   - id: allow-reads
     description: Read-only file access, inspection, and fetches.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -189,7 +294,7 @@ rules:
   - id: allow-build-and-test
     description: Build, test, and shell execution outside production.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.execute
         - shell.write
@@ -202,7 +307,7 @@ rules:
   - id: confirm-prod-writes
     description: Writes, installs, and execution in production.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.write
         - filesystem.write
@@ -220,7 +325,7 @@ rules:
   - id: confirm-force-push
     description: Rewriting history always needs a human.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - git.force_push
         - git.rewrite
@@ -234,7 +339,7 @@ rules:
   - id: confirm-delete-db-cloud
     description: Deletes, database mutation, and cloud mutation.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.delete
         - db.mutate
@@ -249,6 +354,6 @@ rules:
   - id: deny-listed
     description: Operations that must never run.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations: [shell.denied]
     effect: deny

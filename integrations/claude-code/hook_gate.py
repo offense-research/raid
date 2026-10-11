@@ -30,12 +30,25 @@ import raidlib  # noqa: E402
 
 
 def _block_json(reason):
+    """The block verdict, in the shape this host actually enforces.
+
+    Claude Code validates a PreToolUse hook's output against a schema whose
+    hookSpecificOutput accepts exactly hookEventName, permissionDecision,
+    permissionDecisionReason, updatedInput and additionalContext. A `decision`
+    key placed *inside* hookSpecificOutput is not part of that schema and is
+    dropped by validation, which silently turns a block into a no-op - the call
+    runs and the operator believes it was denied. The current field is
+    permissionDecision; the legacy top-level `decision` is kept alongside it for
+    hosts that predate the change.
+    """
     return {
+        "decision": "block",
+        "reason": reason,
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
-            "decision": "block",
-            "reason": reason,
-        }
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        },
     }
 
 
@@ -48,7 +61,7 @@ _ADMIN_COMMANDS = (
 
 def _is_admin(tool_name, tool_input):
     tn = (tool_name or "").lower()
-    if tn in ("readfile", "ls"):
+    if tn in ("read", "readfile", "glob", "grep", "ls"):
         # assume reading is fine generally
         return False
     if tn not in ("bash", "writetoterminal"):
@@ -98,10 +111,12 @@ def main(argv):
         print(json.dumps({"hookSpecificOutput": {}}))
         return 0
 
+    # A non-zero exit is the blocking signal; permissionDecision repeats it in
+    # the structured field, so a host reading either one refuses the call.
     if effect == "deny":
         reason = verdict.get("reason_code", "POLICY_DENY")
         print(json.dumps(_block_json(f"[raid] blocked by policy ({reason}).")))
-        return 1
+        return 2
 
     # require_approval
     appr = verdict.get("approval") or {}
@@ -116,8 +131,8 @@ def main(argv):
         f"then retry the tool call.{wait}"
     )
     print(json.dumps(_block_json(reason)))
-    return 1
+    return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main(sys.argv))

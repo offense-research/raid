@@ -103,7 +103,7 @@ def _check(args):
         "schema_version": 1,
         "request_id": request_id,
         "principal": raidlib.principal(),
-        "action": {"provider": "claude-code", "operation": operation, "effect": effect},
+        "action": {"provider": raidlib.provider(), "operation": operation, "effect": effect},
         "resource": {
             "type": "tool",
             "id": path or ".",
@@ -113,6 +113,27 @@ def _check(args):
         "arguments": {k: raidlib._typed(v) for k, v in (args.get("arguments") or {}).items() if v is not None},
         "context": raidlib.context(request_id),
     }
+    # Stamp the same ledgers the hook and the shim stamp. Without this the MCP
+    # surface answers from the bare operation and path, so the two classes an
+    # adapter can observe -- trajectory drift and confinement -- are inert here,
+    # and raid_check would answer 'allow' for an action that raid-exec refuses.
+    # Two surfaces disagreeing about one call is itself the vulnerability.
+    try:
+        import raidassurance  # noqa: PLC0415
+
+        action["resource"]["attributes"].update(raidassurance.assurance_attrs(
+            operation, "raid_check",
+            {"path": path,
+             "command": (args.get("arguments") or {}).get("command", "") or ""},
+            ledger_dir=raidlib._ledger_dir(),
+            key=raidlib._ledger_key(),
+            cwd=os.getcwd(),
+        ))
+    except Exception as exc:  # noqa: BLE001
+        # A ledger that cannot be stamped must not become a silent allow.
+        return _text_result(f"[raid] could not stamp the session ledger (fail closed): {exc}",
+                            is_error=True)
+
     try:
         verdict = raidlib.Raid().decide(action)
     except raidlib.RaidError as exc:

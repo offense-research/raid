@@ -15,7 +15,7 @@ rules:
     description: >-
       Sending credential material off the machine while reviewing.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -36,7 +36,7 @@ rules:
       A tool call matching no call the model declared for this turn, or whose
       arguments changed between the provider's response and dispatch.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -47,10 +47,34 @@ rules:
       (has(resource.attributes.tool_args_unverified) && resource.attributes.tool_args_unverified == "true")
     effect: deny
 
+  # --- Agent-assurance (arXiv:2608.01558, 2606.10749, 2608.10530) -----------
+  # Even a read-only pass must not act on a call whose tool definition, boundary,
+  # or completion was altered in flight: a rewritten read is exactly how a
+  # review pass is made to carry something out.
+  - id: deny-assurance-tamper
+    description: >-
+      A read governed by a tampered tool schema, a rewritten completion, or a
+      rewritten system-prompt boundary.
+    match:
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
+      operations:
+        - shell.read
+        - shell.inspect
+        - filesystem.read
+        - network.fetch
+    when: >-
+      (has(resource.attributes.tool_schema_mutated) && resource.attributes.tool_schema_mutated == "true") ||
+      (has(resource.attributes.hidden_tool_injected) && resource.attributes.hidden_tool_injected == "true") ||
+      (has(resource.attributes.boundary_tampered) && resource.attributes.boundary_tampered == "true") ||
+      (has(resource.attributes.response_delta) && resource.attributes.response_delta == "true") ||
+      (has(resource.attributes.stream_suffix_injected) && resource.attributes.stream_suffix_injected == "true") ||
+      (has(resource.attributes.trajectory_quota_exceeded) && resource.attributes.trajectory_quota_exceeded == "true")
+    effect: deny
+
   - id: allow-reads
     description: Read-only file access, inspection, and fetches.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       operations:
         - shell.read
         - shell.inspect
@@ -61,6 +85,6 @@ rules:
   - id: deny-all-mutation
     description: This preset grants no write, delete, execute, or admin authority.
     match:
-      providers: [claude-code]
+      providers: [claude-code, codex, aider, opencode, openclaw, vscode, windsurf, crush, cursor, hermes, pi, omp]
       effects: [write, delete, execute, admin]
     effect: deny

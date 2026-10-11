@@ -23,6 +23,8 @@ import socket
 import time
 import urllib.parse
 
+import raidassurance
+
 # ---------------------------------------------------------------------------
 # raidd HTTP client (unix socket)
 # ---------------------------------------------------------------------------
@@ -185,6 +187,15 @@ _SECRET_RX = re.compile(
 )
 _NETWORK_VERBS = {"curl", "wget", "nc", "ncat", "netcat", "scp", "sftp", "rsync", "ssh", "telnet", "ftp"}
 _PROTECTED_BRANCHES = {"main", "master", "trunk", "release", "production", "prod"}
+
+# A shell redirection to a file. Detected on *tokens*, not on the raw string.
+# shlex has already stripped quoting, so a redirect that arrived quoted still
+# reads as one -- `raid-exec` builds its command with shlex.quote, which turns
+# `>` into `'>'`, and a scan of the raw text sees only the quotes and misses the
+# write. A literal `>` inside a string is part of a larger token and is ignored.
+# `2>&1` / `>&2` duplicate a descriptor rather than write a file.
+_REDIRECT_OPS = (">", ">>", "1>", "2>", "&>", "1>>", "2>>", ">|")
+_REDIRECT_ATTACHED_RX = re.compile(r"^(?:\d)?>>?(?![&=])(?P<path>.+)$")
 
 # ---------------------------------------------------------------------------
 # Egress & exfiltration guardrails, and session taint
@@ -437,6 +448,27 @@ _INTEGRITY_DEFAULTS = (
     "injected_call",
     "tool_args_unverified",
     "sequence_anomaly",
+    # Agent-assurance classes (arXiv:2608.01558, 2606.10749, 2608.10530). Kept
+    # in step with core/integrity/assurance.go so one policy bundle reads the
+    # same attribute set under every adapter.
+    "trajectory_tracked",
+    "trajectory_attested",
+    "trajectory_drift",
+    "trajectory_unplanned",
+    "trajectory_quota_exceeded",
+    "tool_schema_attested",
+    "tool_schema_mutated",
+    "hidden_tool_injected",
+    "boundary_tampered",
+    "stream_audited",
+    "stream_prefix_mismatch",
+    "stream_suffix_injected",
+    "response_delta",
+    "confinement_tracked",
+    "confined",
+    "confinement_escape",
+    "confinement_widened",
+    "env_escape",
 )
 
 
@@ -798,6 +830,21 @@ def classify_segment(segment):
             op, fx = "shell.read", "read"
         else:
             op, fx = "shell.execute", "execute"
+
+    # A redirection writes to the filesystem whatever the verb is. `echo x >
+    # /etc/hosts` is a write, and reporting it as a read is not a cosmetic
+    # mistake: every rule scoped to state-changing operations -- which is where
+    # the confinement and destructive-write checks live -- would miss it.
+    if any(_is_redirect(t) for t in toks):
+        if _EFFECT_RANK.get(fx, 0) < _EFFECT_RANK["write"]:
+            op, fx = "shell.write", "write"
+
+    nested = _nested_shell_command(toks)
+    if nested:
+        nop, nfx, _nrt, _nattrs = classify_segment(nested)
+        if _EFFECT_RANK.get(nfx, 0) > _EFFECT_RANK.get(fx, 0):
+            op, fx = nop, nfx
+
     egress = _segment_egress(toks, low)
     attrs = {
         "verb": verb,
@@ -824,6 +871,38 @@ def _primary_target(toks):
     for t in toks[1:]:
         if not t.startswith("-") and not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", t):
             return t
+    return ""
+
+
+def _redirect_path(tok):
+    """The path attached to a redirect token (`>out.log`, `2>>log`), or ''."""
+    m = _REDIRECT_ATTACHED_RX.match(str(tok or ""))
+    return m.group("path") if m else ""
+
+
+def _is_redirect(tok):
+    """True for a shell token that redirects output to a file."""
+    return str(tok or "") in _REDIRECT_OPS or bool(_redirect_path(tok))
+
+
+_SHELL_VERBS = {"sh", "bash", "zsh", "dash", "ksh", "ash"}
+
+
+def _nested_shell_command(toks):
+    """The command string passed to `sh -c '...'`, if this segment is one.
+
+    A CLI agent that shells out almost always wraps its command in an
+    interpreter, so the redirect it performs lives *inside* that argument.
+    Analysing only the outer tokens sees `bash -c <string>` and misses the write
+    entirely -- and the quoting that makes it opaque is the adapter's own
+    (`raid-exec` builds its command with shlex.quote).
+    """
+    if len(toks) < 3 or os.path.basename(toks[0]) not in _SHELL_VERBS:
+        return ""
+    for i, t in enumerate(toks[1:], start=1):
+        if t == "-c" and i + 1 < len(toks):
+            # shlex has already removed the inner quoting.
+            return " ".join(toks[i + 1:])
     return ""
 
 
@@ -946,7 +1025,8 @@ def tool_to_action(tool_name, tool_input, request_id, environment="development",
         op, fx, rtype = "filesystem.write", "write", "path"
         resource_id = str(tin.get("file_path") or tin.get("path") or ".")
         args = {"old_string": tin.get("old_string"), "new_string": tin.get("new_string")}
-    elif tool_name in ("readfile", "multigetfile", "ls"):
+    elif tool_name in ("read", "readfile", "multigetfile", "ls", "glob", "grep",
+                       "notebookread"):
         op, fx, rtype = "shell.read", "read", "path"
         resource_id = str(tin.get("file_path") or tin.get("path") or cwd or ".")
         args = {}
@@ -1002,6 +1082,18 @@ def tool_to_action(tool_name, tool_input, request_id, environment="development",
         tool_name, tin,
         declared=declared_calls(),
         index=call_index(),
+    ))
+
+    # Agent-assurance ledgers. Trajectory and confinement are stamped here, at
+    # the one point every adapter passes through; the schema and stream ledgers
+    # are named-and-false because a pre-tool-call hook is handed neither the
+    # tool manifest nor the completion. See raidassurance for which surface can
+    # observe which class.
+    attrs.update(raidassurance.assurance_attrs(
+        operation, tool_name, tin,
+        ledger_dir=_ledger_dir(),
+        key=_ledger_key(),
+        cwd=cwd or os.environ.get("RAID_CWD", "") or os.getcwd(),
     ))
 
     environment = environment or os.environ.get("RAID_ENV", "development")
