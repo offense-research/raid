@@ -23,6 +23,8 @@ import socket
 import time
 import urllib.parse
 
+import raidassurance
+
 # ---------------------------------------------------------------------------
 # raidd HTTP client (unix socket)
 # ---------------------------------------------------------------------------
@@ -185,6 +187,11 @@ _SECRET_RX = re.compile(
 )
 _NETWORK_VERBS = {"curl", "wget", "nc", "ncat", "netcat", "scp", "sftp", "rsync", "ssh", "telnet", "ftp"}
 _PROTECTED_BRANCHES = {"main", "master", "trunk", "release", "production", "prod"}
+
+# A shell redirection to a file. Matched against the segment with quoted spans
+# removed, so a literal " > " inside a string is not mistaken for a write, and
+# with `&`= excluded so a file-descriptor duplication (`2>&1`) is not either.
+_WRITE_REDIRECT_RX = re.compile(r"(?:^|[\s;|&])\d?>>?\s*(?![&=])")
 
 # ---------------------------------------------------------------------------
 # Egress & exfiltration guardrails, and session taint
@@ -819,6 +826,16 @@ def classify_segment(segment):
             op, fx = "shell.read", "read"
         else:
             op, fx = "shell.execute", "execute"
+
+    # A redirection writes to the filesystem whatever the verb is. `echo x >
+    # /etc/hosts` is a write, and reporting it as a read is not a cosmetic
+    # mistake: every rule scoped to state-changing operations -- which is where
+    # the confinement and destructive-write checks live -- would miss it.
+    unquoted = re.sub(r"'[^']*'|\"[^\"]*\"", "", segment)
+    if _WRITE_REDIRECT_RX.search(unquoted):
+        if _EFFECT_RANK.get(fx, 0) < _EFFECT_RANK["write"]:
+            op, fx = "shell.write", "write"
+
     egress = _segment_egress(toks, low)
     attrs = {
         "verb": verb,
@@ -967,7 +984,8 @@ def tool_to_action(tool_name, tool_input, request_id, environment="development",
         op, fx, rtype = "filesystem.write", "write", "path"
         resource_id = str(tin.get("file_path") or tin.get("path") or ".")
         args = {"old_string": tin.get("old_string"), "new_string": tin.get("new_string")}
-    elif tool_name in ("readfile", "multigetfile", "ls"):
+    elif tool_name in ("read", "readfile", "multigetfile", "ls", "glob", "grep",
+                       "notebookread"):
         op, fx, rtype = "shell.read", "read", "path"
         resource_id = str(tin.get("file_path") or tin.get("path") or cwd or ".")
         args = {}
@@ -1023,6 +1041,18 @@ def tool_to_action(tool_name, tool_input, request_id, environment="development",
         tool_name, tin,
         declared=declared_calls(),
         index=call_index(),
+    ))
+
+    # Agent-assurance ledgers. Trajectory and confinement are stamped here, at
+    # the one point every adapter passes through; the schema and stream ledgers
+    # are named-and-false because a pre-tool-call hook is handed neither the
+    # tool manifest nor the completion. See raidassurance for which surface can
+    # observe which class.
+    attrs.update(raidassurance.assurance_attrs(
+        operation, tool_name, tin,
+        ledger_dir=_ledger_dir(),
+        key=_ledger_key(),
+        cwd=cwd or os.environ.get("RAID_CWD", "") or os.getcwd(),
     ))
 
     environment = environment or os.environ.get("RAID_ENV", "development")
